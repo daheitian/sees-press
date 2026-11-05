@@ -203,6 +203,13 @@ def build(source: str, options: BuildOptions | None = None,
             if extras:
                 (out / "validate_epub.txt").write_text("\n".join(extras), encoding="utf-8")
                 res.artifacts["校验记录"] = str(out / "validate_epub.txt")
+            # 上架兼容体检：官方 EPUBCheck 查「合法」，这里查「好读、平台肯收」
+            from .compat import audit_epub, render_compat_report
+            audit = audit_epub(epub_path)
+            (out / "compat.md").write_text(
+                render_compat_report(audit), encoding="utf-8")
+            res.artifacts["上架兼容体检"] = str(out / "compat.md")
+            emit(f"上架体检：{audit.verdict}")
             emit("EPUB 完成")
 
         # ── 6. PDF ───────────────────────────────────────────────
@@ -253,6 +260,10 @@ def build(source: str, options: BuildOptions | None = None,
         f = out / "validate_epub.txt"
         if f.exists():
             extras_out = [f.read_text(encoding="utf-8")]
+        cf = out / "compat.md"
+        if cf.exists():
+            head = "\n".join(cf.read_text(encoding="utf-8").splitlines()[:4])
+            extras_out.append("## 上架兼容体检\n\n" + head + "\n\n逐项明细见 compat.md。")
         report = lint.render_report(book, gates,
                                     {k: v for k, v in res.artifacts.items() if v},
                                     extra=extras_out)

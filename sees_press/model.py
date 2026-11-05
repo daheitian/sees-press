@@ -62,7 +62,7 @@ class Meta:
 class Block:
     """一个正文块。kind 决定语义，渲染器决定外观。"""
     kind: str = "p"
-    # p / subhead / quote / list / olist / verse / figure / rule / code / epigraph /
+    # p / subhead / quote / list / olist / verse / figure / rule / code / table / epigraph /
     # attrib / plain / dedication / pagebreak
     text: str = ""
     level: int = 3              # subhead 用：3 = h3

@@ -9,16 +9,19 @@ r"""IR → 重排式 EPUB 3（语义化 XHTML）。
     ① mimetype 必须包首且 ZIP_STORED；
     ② spine 的 idref 必须与 manifest 的 item id 完全一致；
     ③ toc.ncx media-type = application/x-dtbncx+xml，nav 必须 properties="nav"。
-  外加固化：封面 PNG 自带标题（微信读书书架取的是 cover-image 那张图本身）、
+  外加固化：封面统一 RGB JPEG（微信读书书架取的是 cover-image 那张图本身）、
     双目录、弹出脚注带返回链接、--publisher 留空时不输出空的 dc:publisher。
 """
 from __future__ import annotations
 
 import html
+import io
 import mimetypes
+import re
 import shutil
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
 from .model import Book, Block, Chapter
@@ -33,6 +36,7 @@ XHTML_HEAD = """<?xml version="1.0" encoding="utf-8"?>
       xml:lang="{lang}" lang="{lang}">
 <head>
   <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>{title}</title>
   <link rel="stylesheet" type="text/css" href="styles/core.css"/>
 </head>
@@ -75,6 +79,36 @@ def render_inline_html(text: str, notes: dict[str, str], *, space: bool,
     return rec(parse_inline(text))
 
 
+def _is_amount(v: str) -> bool:
+    stripped = "".join(ch for ch in v if ch not in ",.，-—–()%％¥￥ \t")
+    return bool(stripped) and all(ch.isdigit() for ch in stripped)
+
+
+def _table_html(text: str) -> str:
+    """表格块：每行 `标签\t数值`，输出语义 <table>。
+
+    PDF 抽出来的财务表格在文本层是碎片，以前用 <pre> 等宽假表格凑，
+    在微信读书里既不能缩放也不换行；改真表格后阅读器可自行重排。
+    """
+    rows = []
+    for line in text.split("\n"):
+        if not line.strip():
+            continue
+        cells = [c.strip() for c in line.split("\t")]
+        rows.append(cells if len(cells) >= 2 else [cells[0], ""])
+    if not rows:
+        return ""
+    out = ['<table class="data">\n<tbody>\n']
+    for label, value in rows:
+        if not value:
+            out.append(f'<tr><td colspan="2">{E(label)}</td></tr>\n')
+        else:
+            cls = ' class="num"' if _is_amount(value) else ""
+            out.append(f'<tr><td>{E(label)}</td><td{cls}>{E(value)}</td></tr>\n')
+    out.append("</tbody>\n</table>\n")
+    return "".join(out)
+
+
 def render_block_html(b: Block, notes: dict[str, str], *, space: bool,
                       used_fns: list[str], images: dict[str, str]) -> str:
     R = lambda s: render_inline_html(s, notes, space=space, used_fns=used_fns)
@@ -100,12 +134,16 @@ def render_block_html(b: Block, notes: dict[str, str], *, space: bool,
         if not src:
             return ""
         cap = f"<figcaption>{R(b.caption)}</figcaption>\n" if b.caption else ""
+        # 非 ASCII 路径必须百分号编码，否则部分国产阅读器图片 404 整页空白
+        href = E(quote(src, safe="/"))
         return (f'<figure id="fig{abs(hash(b.src)) % 99999}">\n'
-                f'<img src="{E(src)}" alt="{E(b.caption)}"/>\n{cap}</figure>\n')
+                f'<img src="{href}" alt="{E(b.caption)}"/>\n{cap}</figure>\n')
     if b.kind == "rule":
         return '<hr class="dinkus"/>\n'
     if b.kind == "pagebreak":
-        return '<div class="pagebreak" epub:type="pagebreak" style="break-before:page"/>\n'
+        return '<div class="pagebreak" epub:type="pagebreak"/>\n'
+    if b.kind == "table":
+        return _table_html(b.text)
     if b.kind == "code":
         return "<pre><code>" + E(b.text) + "</code></pre>\n"
     return ""
@@ -155,7 +193,7 @@ def _front_xhtml(book: Book, kind: str) -> str:
     s = XHTML_HEAD.format(lang=m.language, title=E(m.title), bodytype=bt)
     if kind == "cover":
         s += ('<section class="front" epub:type="cover">\n'
-              '<img src="images/cover.png" alt="封面"/>\n</section>\n')
+              '<img src="images/cover.jpg" alt="封面"/>\n</section>\n')
     elif kind == "titlepage":
         sub = f'<p class="title-sub">{E(m.subtitle)}</p>' if m.subtitle else ""
         author = f'<p class="title-author">{E(m.author_line() or m.author)}</p>' if (m.author_line() or m.author) else ""
@@ -246,13 +284,14 @@ def _opf(book: Book, files: list[tuple[str, str, str, str]]) -> str:
     for subj in [x.strip() for x in m.subject.split(",") if x.strip()]:
         md.append(f'<dc:subject>{xml_escape(subj)}</dc:subject>')
     md.append(f'<meta property="dcterms:modified">{xml_escape(m.modified)}</meta>')
+    md.append('<meta property="rendition:layout">reflowable</meta>')
     md.append('<meta name="cover" content="cover-image"/>')
 
     manifest = "\n".join(
         f'<item id="{i}" href="{xml_escape(h)}" media-type="{mt}"'
         + (f' properties="{pr}"' if pr else "") + "/>"
         for i, h, mt, pr in files)
-    spine_ids = ["cover_xhtml", "titlepage_xhtml"] + [
+    spine_ids = ["cover_xhtml", "titlepage_xhtml", "nav_xhtml"] + [
         Path(c.slug).stem for c in book.chapters] + ["colophon_xhtml"]
     spine = "\n".join(f'<itemref idref="{x}"/>' for x in spine_ids)
     return f"""<?xml version="1.0" encoding="utf-8"?>
@@ -277,6 +316,28 @@ CONTAINER = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+def _as_cover_jpeg(data: bytes) -> bytes:
+    """封面统一 RGB JPEG，总像素 ≤ 300 万且短边尽量 ≥ 1400。
+
+    主流平台上架阈值：单图不超过 320 万像素（Apple 400 万），封面短边
+    ≥ 1400px（Apple Books 最低要求），格式 JPEG / RGB / 无透明通道。
+    """
+    from PIL import Image
+    im = Image.open(io.BytesIO(data)).convert("RGB")
+    ow, oh = im.size
+    w, h = ow, oh
+    if w * h > 3_000_000:
+        k = (3_000_000 / (w * h)) ** 0.5
+        w, h = int(w * k), int(h * k)
+    if min(ow, oh) >= 1400 and min(w, h) < 1400:
+        k = 1400 / min(w, h)
+        w, h = int(w * k), int(h * k)
+    im = im.resize((max(1, w), max(1, h)), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=90, optimize=True, progressive=True)
+    return buf.getvalue()
+
+
 def build_epub(book: Book, out: str | Path, *, cover: str | Path | None = None,
                work: str | Path | None = None, cjk_spacing: bool = True) -> Path:
     """生成 EPUB 3，返回路径。images 映射由 work 目录下的 figs 自动收集。"""
@@ -297,7 +358,9 @@ def build_epub(book: Book, out: str | Path, *, cover: str | Path | None = None,
             if not p.exists():
                 continue
             n += 1
-            ext = p.suffix.lower() or ".png"
+            ext = p.suffix.lower()
+            if not re.fullmatch(r"\.[a-z0-9]{1,5}", ext):
+                ext = ".png"                 # 杜绝中文/空格后缀进入 manifest
             name = f"fig{n:03d}{ext}"
             images[b.src] = "images/" + name
             fig_payloads[name] = p.read_bytes()
@@ -305,21 +368,22 @@ def build_epub(book: Book, out: str | Path, *, cover: str | Path | None = None,
     def media(name: str) -> str:
         return mimetypes.guess_type(name)[0] or "application/octet-stream"
 
-    cover_png = None
+    cover_src = None
     if cover and Path(cover).exists():
-        cover_png = Path(cover).read_bytes()
+        cover_src = Path(cover).read_bytes()
     elif (work / "cover.png").exists():
-        cover_png = (work / "cover.png").read_bytes()
-    if cover_png is None:
+        cover_src = (work / "cover.png").read_bytes()
+    if cover_src is None:
         from .cover import make_cover
-        cover_png = make_cover(book.meta, fmt="png")
+        cover_src = make_cover(book.meta, fmt="png")
+    cover_jpeg = _as_cover_jpeg(cover_src)
 
     entries: dict[str, bytes | str] = {}
     files: list[tuple[str, str, str, str]] = [
         ("nav_xhtml", "nav.xhtml", "application/xhtml+xml", "nav"),
         ("ncx", "toc.ncx", "application/x-dtbncx+xml", ""),
         ("css", "styles/core.css", "text/css", ""),
-        ("cover_image", "images/cover.png", "image/png", "cover-image"),
+        ("cover_image", "images/cover.jpg", "image/jpeg", "cover-image"),
         ("cover_xhtml", "cover.xhtml", "application/xhtml+xml", ""),
         ("titlepage_xhtml", "titlepage.xhtml", "application/xhtml+xml", ""),
         ("colophon_xhtml", "colophon.xhtml", "application/xhtml+xml", ""),
@@ -327,7 +391,7 @@ def build_epub(book: Book, out: str | Path, *, cover: str | Path | None = None,
     entries["OEBPS/nav.xhtml"] = _nav_xhtml(book).encode("utf-8")
     entries["OEBPS/toc.ncx"] = _ncx(book).encode("utf-8")
     entries["OEBPS/styles/core.css"] = epub_css(book.meta.style).encode("utf-8")
-    entries["OEBPS/images/cover.png"] = cover_png
+    entries["OEBPS/images/cover.jpg"] = cover_jpeg
     entries["OEBPS/cover.xhtml"] = _front_xhtml(book, "cover").encode("utf-8")
     entries["OEBPS/titlepage.xhtml"] = _front_xhtml(book, "titlepage").encode("utf-8")
     entries["OEBPS/colophon.xhtml"] = _front_xhtml(book, "colophon").encode("utf-8")

@@ -53,6 +53,12 @@ jobs:
           print(f"OK: {epub.name}, {len(names)} entries, all required artifacts present")
           PY
 
+      - name: EPUB 上架兼容体检
+        shell: bash
+        run: |
+          EPUB=$(ls out/ci/*.epub | head -1)
+          python -m sees_press.cli compat "$EPUB" -o out/ci/compat.md
+
       - name: Upload demo artifacts
         uses: actions/upload-artifact@v4
         with:

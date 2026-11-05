@@ -5,6 +5,7 @@
   python -m sees_press.cli build 扫描书.pdf --formats epub,cover,preview
   python -m sees_press.cli pdf2md 书.pdf -o 抽取稿.md       # 只重建书稿，人工校对
   python -m sees_press.cli pdf2md 书.pdf --check             # 只体检，不落盘
+  python -m sees_press.cli compat 成品.epub                  # 上架兼容体检
   python -m sees_press.cli build https://example.com/essay --formats epub,pdf
   python -m sees_press.cli styles
   python -m sees_press.cli doctor
@@ -75,6 +76,20 @@ def cmd_pdf2md(a) -> int:
     return 0
 
 
+def cmd_compat(a) -> int:
+    from .compat import audit_epub, render_compat_report
+    au = audit_epub(a.epub)
+    print(f"  {au.verdict}　（{len(au.passed)} 通过 / {len(au.warns)} 建议 / {len(au.errors)} 必须修）")
+    for f in au.findings:
+        if f.level != "ok":
+            mark = "✗" if f.level == "error" else "!"
+            print(f"  [{mark}] {f.code} · {f.title}：{f.detail}")
+    dest = Path(a.output) if a.output else Path(a.epub).with_suffix(".compat.md")
+    dest.write_text(render_compat_report(au), encoding="utf-8")
+    print(f"  报告：{dest}")
+    return 1 if au.errors else 0
+
+
 def cmd_styles(_a) -> int:
     print(f"{'版式':<10}{'开本 mm':<14}{'行距':<7}{'专色':<10}气质")
     print("-" * 72)
@@ -138,6 +153,11 @@ def main(argv=None) -> int:
     pm.add_argument("-o", "--out", default="", help="输出 .md 路径（默认与 PDF 同名）")
     pm.add_argument("--check", action="store_true", help="只输出体检结果，不生成文件")
     pm.set_defaults(func=cmd_pdf2md)
+
+    c = sub.add_parser("compat", help="EPUB 上架兼容体检（微信读书等平台通用准入线）")
+    c.add_argument("epub", help="要检查的 .epub 文件")
+    c.add_argument("-o", "--output", help="报告输出路径（默认同目录 .compat.md）")
+    c.set_defaults(func=cmd_compat)
 
     sub.add_parser("styles", help="列出七种版式").set_defaults(func=cmd_styles)
     sub.add_parser("doctor", help="环境自检").set_defaults(func=cmd_doctor)

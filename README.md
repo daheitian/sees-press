@@ -28,6 +28,7 @@ python -m sees_press.cli demo                      # 用示例文稿跑通全流
 python -m sees_press.cli build 稿件.md --title "书名" --author "作者" --style 疏朗留白
 python -m sees_press.cli styles                    # 看七种版式
 python -m sees_press.cli doctor                    # 环境自检
+python -m sees_press.cli compat 成品.epub          # 上架兼容体检（可接 CI）
 ```
 
 > 本机没有全局 `python` 时用绝对路径：
@@ -96,6 +97,8 @@ python -m sees_press.cli doctor                    # 环境自检
 - **B · PDF**：Overfull >1pt、缺字形、`!` 编译错误
 
 `report.md` 会同时附上 `validate_epub.py` 的原始输出。**错误标记会阻断「质检通过」**，但不会阻止其余产物生成——某条支线挂了不拖垮整本书。
+
+**第四道：上架兼容体检**（`compat.py`）。三道闸门查「书有没有做错」，体检查「在微信读书 / 掌阅等国产阅读器里好不好读、平台肯不肯收」：封面 JPEG/RGB 与像素上限、字号可缩放、CSS 变量与 8 位 hex 等旧内核不认的语法、流式声明、非 ASCII 资源路径、图片死链、真表格。每次构建自动写 `compat.md`，也可 `python -m sees_press.cli compat 成品.epub` 单独跑；有「必须修」项返回非 0。详见 [EPUB上架说明.md](EPUB上架说明.md)。
 
 ---
 
@@ -188,7 +191,7 @@ python -m sees_press.cli build <输入> \
 
 | 文件 | 说明 |
 |---|---|
-| `<书名>.epub` | 重排式 EPUB 3，双目录、可弹出脚注、语义化 XHTML，可上架微信读书 |
+| `<书名>.epub` | 重排式 EPUB 3，双目录、可弹出脚注、语义化 XHTML；符合主流平台上架通用准入线（上架本身另需版权与资质，见 `EPUB上架说明.md`） |
 | `<书名>.pdf` | 整书：封面 + 书名页 + 版权页 + 目录 + 正文，含 PDF 书签 |
 | `cover.png` | 三段式编辑印刷风封面（黑 + 暖白双色、半调网点、标题已烤入） |
 | `preview.html` | 单文件离线预览，桌面 / 手机窄屏切换，可直接打印 |
@@ -197,6 +200,7 @@ python -m sees_press.cli build <输入> \
 | `book.json` | 书稿 IR 快照，便于二次加工 / 版本对比 |
 | `report.md` | 质检报告（含外部校验器原始输出） |
 | `validate_epub.txt` | 既有 23 项校验脚本的输出 |
+| `compat.md` | 上架兼容体检报告（逐项判定 + 结论） |
 
 ---
 
@@ -225,6 +229,7 @@ sees-press/
 │  ├─ inline.py            行内标记 token 化（递归，非正则）
 │  ├─ parse.py             文本 → IR
 │  ├─ lint.py              三道闸门 + 报告
+│  ├─ compat.py            EPUB 上架兼容体检
 │  ├─ tex.py               IR → body.tex / book.tex
 │  ├─ epub.py              IR → 语义化 EPUB 3
 │  ├─ cover.py             程序化封面

@@ -79,114 +79,122 @@ def as_list() -> list[dict]:
 
 
 def epub_css(style_name: str) -> str:
-    """把装帧参数映射为重排式 EPUB CSS。
+    """把装帧参数映射为 EPUB 3 重排式 CSS（兼容性优先）。
 
-    关键：中文禁则 / 标点挤压 / 孤行控制 / 中西文自动间距，
-    对应 `se typogrify` + `se clean` 的排版目标，只是落到阅读器可由 CSS 执行。
+    微信读书 / 掌阅 / Kobo / Apple Books 的渲染内核差异极大，实测必须避开：
+      · CSS 自定义属性 var() —— 旧 WebView 不支持，含它的整条声明会被丢弃；
+      · `var(--x)66` 这类变量拼接 —— 本就是无效 CSS，颜色全丢；
+      · 8 位 hex（#RRGGBBAA）、`list-style: "字符串"` —— 支持面很窄；
+      · `-webkit-text-size-adjust: none` —— 会锁死字号，违反「文字必须可缩放」；
+      · 硬指定中文字体名 —— 覆盖阅读器自带的字体设置，跨平台必然跑偏。
+    因此：颜色直接内联、字号用 em、字体交还阅读器、分页属性新旧双写。
     """
+    from string import Template
     s = get(style_name)
-    ink, accent = s["ink"], s["accent"]
-    indent = s["epub_indent"]
-    size = s["epub_size"]
-    header_rule = f"border-bottom: 1px solid {accent}22;" if s["rule"] else ""
-    return f"""/* SEES PRESS · {style_name} · 由版式参数自动生成 */
+    rule = "border-bottom: 1px solid " + s["accent"] + ";" if s["rule"] else ""
+    tpl = Template(r"""/* SEES PRESS · $style · EPUB 3 重排式（面向国产阅读器兼容） */
 @namespace epub "http://www.idpf.org/2007/ops";
-:root {{ --ink: {ink}; --accent: {accent}; }}
-html {{
-  font-size: 100%;
-  -webkit-text-size-adjust: none;
-}}
-body {{
-  font-family: "Songti SC", "Source Han Serif SC", "Noto Serif CJK SC", SimSun, serif;
-  font-size: {size}em;
-  line-height: {s['leading']};
-  color: var(--ink);
+html { font-size: 100%; }
+body {
+  font-family: serif;
+  font-size: ${size}em;
+  line-height: $leading;
+  color: $ink;
   margin: 0 5%;
   text-align: justify;
   text-justify: inter-ideograph;
   line-break: strict;
   word-break: normal;
   overflow-wrap: break-word;
-  hyphens: none;
   widows: 2; orphans: 2;
-  hanging-punctuation: allow-end last;
-}}
-/* 段首缩进；紧接标题/引文/图/列表的首段不缩进（中文书惯例） */
-p {{ margin: 0; text-indent: {indent}em; }}
+}
+/* 段首缩进；紧接标题/引文/图/表/列表的首段不缩进（中文书惯例） */
+p { margin: 0; text-indent: ${indent}em; widows: 2; orphans: 2; }
 p.first, p.noindent, h1 + p, h2 + p, h3 + p,
-blockquote + p, figure + p, ul + p, ol + p {{ text-indent: 0; }}
-p.first {{ margin-top: .35em; }}
-/* 中西文间距由渲染器注入 U+2009，此处只保证它不被折行吞掉 */
-span.cjksp {{ white-space: nowrap; }}
+blockquote + p, figure + p, table + p, ul + p, ol + p { text-indent: 0; }
+p.first { margin-top: .35em; }
+span.cjksp { white-space: nowrap; }
 /* 标题 */
-h1, h2, h3 {{
-  font-family: "Heiti SC", "Source Han Sans SC", "Noto Sans CJK SC", SimHei, sans-serif;
+h1, h2, h3 {
+  font-family: sans-serif;
   font-weight: 600; text-align: left; text-indent: 0;
+  color: $ink;
   page-break-after: avoid; break-after: avoid;
-  color: var(--ink);
-}}
-h1 {{ font-size: 1.55em; letter-spacing: .06em; margin: 0 0 1.2em; }}
-h2 {{ font-size: 1.32em; letter-spacing: .04em; margin: 0 0 1em; }}
-h3 {{ font-size: 1.08em; margin: 1.6em 0 .6em; color: var(--accent); }}
-h1 .num, h2 .num {{
+}
+h1 { font-size: 1.55em; letter-spacing: .06em; margin: 0 0 1.2em; }
+h2 { font-size: 1.32em; letter-spacing: .04em; margin: 0 0 1em; }
+h3 { font-size: 1.08em; margin: 1.6em 0 .6em; color: $accent; }
+h1 .num, h2 .num {
   display: block; font-size: .58em; letter-spacing: .22em;
-  color: var(--accent); font-weight: 400; margin-bottom: .5em;
-}}
-/* 篇章首页 */
-section.chapter {{ page-break-before: always; break-before: page; }}
-section.part {{ page-break-before: always; break-before: page; }}
-header.chapter-head {{ {header_rule} padding-bottom: .8em; margin-bottom: 1.8em; }}
-section.part header.chapter-head {{ margin-top: 22%; }}
-/* 引语 / 题词 */
-blockquote.epigraph {{
+  color: $accent; font-weight: 400; margin-bottom: .5em;
+}
+/* 篇章首页 · 分页属性新旧双写 */
+section.chapter, section.part { page-break-before: always; break-before: page; }
+div.pagebreak { page-break-before: always; break-before: page; }
+header.chapter-head { $rule padding-bottom: .8em; margin-bottom: 1.8em; }
+section.part header.chapter-head { margin-top: 22%; }
+/* 题词 / 引文 */
+blockquote.epigraph {
   margin: 2.2em 8% 2.2em 12%; font-size: .9em; line-height: 1.7;
-  color: var(--accent); text-indent: 0; text-align: left;
-}}
-blockquote.epigraph p {{ text-indent: 0; margin: 0; }}
-p.attrib {{ text-align: right; text-indent: 0; font-size: .85em; color: var(--accent); margin: 0 8% 2em 0; }}
-/* 引文 */
-blockquote.quote {{
+  color: $accent; text-indent: 0; text-align: left;
+}
+blockquote.epigraph p { text-indent: 0; margin: 0; }
+p.attrib { text-align: right; text-indent: 0; font-size: .85em; color: $accent; margin: 0 8% 2em 0; }
+blockquote.quote {
   margin: 1.1em 0 1.1em 1.4em; padding-left: .9em;
-  border-left: 2px solid var(--accent)66; text-indent: 0;
-}}
-blockquote.quote p {{ text-indent: 0; }}
-/* 列表 / 诗文 */
-ul, ol {{ margin: .7em 0 .9em 1.2em; padding-left: .8em; }}
-li {{ margin: .18em 0; text-indent: 0; }}
-ul li {{ list-style: "—　"; }}
-div.verse {{ margin: 1.2em 0 1.2em 1.6em; text-indent: 0; }}
-div.verse p {{ text-indent: 0; margin: 0; line-height: 1.65; }}
+  border-left: 2px solid $accent; text-indent: 0;
+}
+blockquote.quote p { text-indent: 0; }
+/* 列表：不用自定义 list-style 字符串，改用广泛支持的生成内容 */
+ul, ol { margin: .7em 0 .9em 1.2em; padding-left: .8em; }
+li { margin: .18em 0; text-indent: 0; }
+ul li { list-style-type: none; }
+ul li:before { content: "—　"; margin-left: -1.2em; color: $accent; }
+div.verse { margin: 1.2em 0 1.2em 1.6em; text-indent: 0; }
+div.verse p { text-indent: 0; margin: 0; line-height: 1.65; }
 /* 插图 */
-figure {{ margin: 1.4em 0; text-align: center; page-break-inside: avoid; }}
-figure img {{ max-width: 100%; height: auto; }}
-figcaption {{ font-size: .82em; color: var(--accent); text-indent: 0; margin-top: .5em; }}
-/* 脚注：epub:type=footnote 弹出 */
-sup.noteref a {{ text-decoration: none; color: var(--accent); font-size: .72em; }}
-aside.footnote {{ font-size: .84em; margin: 1.6em 0 0; border-top: 1px solid var(--accent)44; padding-top: .6em; }}
-aside.footnote p {{ text-indent: 0; }}
-a.backref {{ text-decoration: none; color: var(--accent); }}
+figure { margin: 1.4em 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; height: auto; }
+figcaption { font-size: .82em; color: $accent; text-indent: 0; margin-top: .5em; }
+/* 真表格（财务 / 数据），不再用 <pre> 假表格 */
+table { width: 100%; border-collapse: collapse; margin: 1.1em 0;
+        font-size: .9em; page-break-inside: avoid; }
+td, th { padding: .32em .5em; border-bottom: 1px solid #cccccc;
+         vertical-align: top; text-align: left; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+caption { font-size: .82em; color: $accent; text-align: left; margin-bottom: .5em; }
+/* 脚注：epub:type=footnote 可弹出，带返回链接 */
+sup.noteref a { text-decoration: none; color: $accent; font-size: .72em; }
+aside.footnote { font-size: .84em; margin: 1.6em 0 0;
+                 border-top: 1px solid #cccccc; padding-top: .6em; }
+aside.footnote p { text-indent: 0; }
+a.backref { text-decoration: none; color: $accent; }
 /* 分隔 / 代码 */
-hr.dinkus {{ border: 0; text-align: center; margin: 1.8em 0; }}
-hr.dinkus::after {{ content: "*　*　*"; color: var(--accent); letter-spacing: .3em; }}
-pre {{ font-family: monospace; font-size: .84em; line-height: 1.45;
-       white-space: pre-wrap; word-break: break-all; text-indent: 0;
-       margin: 1em 0; padding: .7em; background: #00000008; }}
-code {{ font-family: monospace; font-size: .9em; }}
+hr.dinkus { border: 0; text-align: center; margin: 1.8em 0; }
+hr.dinkus:after { content: "*　*　*"; color: $accent; letter-spacing: .3em; }
+pre { font-family: monospace; font-size: .84em; line-height: 1.45;
+      white-space: pre-wrap; word-break: break-word; text-indent: 0;
+      margin: 1em 0; padding: .7em; border: 1px solid #dddddd; }
+code { font-family: monospace; font-size: .9em; }
 /* 前置页 */
-section.front {{ page-break-after: always; text-align: center; }}
-section.front p {{ text-indent: 0; }}
-p.title-main {{ font-family: "Heiti SC", SimHei, sans-serif; font-size: 2.1em;
-                letter-spacing: .12em; margin: 26% 0 .4em; }}
-p.title-sub {{ font-size: .92em; color: var(--accent); letter-spacing: .08em; margin: 0 0 3em; }}
-p.title-author {{ font-size: 1em; margin-top: 3em; }}
-p.title-pub {{ font-size: .82em; color: var(--accent); margin-top: 8em; }}
-section.colophon {{ font-size: .82em; color: var(--accent); }}
-section.colophon h2 {{ font-size: 1.1em; text-align: center; }}
-section.colophon p {{ margin: .35em 0; }}
+section.front { page-break-after: always; break-after: page; text-align: center; }
+section.front img { max-width: 100%; height: auto; }
+section.front p { text-indent: 0; }
+p.title-main { font-family: sans-serif; font-size: 2.1em;
+               letter-spacing: .12em; margin: 26% 0 .4em; }
+p.title-sub { font-size: .92em; color: $accent; letter-spacing: .08em; margin: 0 0 3em; }
+p.title-author { font-size: 1em; margin-top: 3em; }
+p.title-pub { font-size: .82em; color: $accent; margin-top: 8em; }
+section.colophon { font-size: .82em; color: $accent; }
+section.colophon h2 { font-size: 1.1em; text-align: center; }
+section.colophon p { margin: .35em 0; }
 /* 目录 */
-nav#toc ol {{ list-style: none; margin: 0; padding: 0; }}
-nav#toc li {{ margin: .55em 0; text-indent: 0; }}
-nav#toc li.part {{ margin-top: 1.2em; font-weight: 600; }}
-nav#toc li.sec {{ padding-left: 1.6em; }}
-nav#toc a {{ text-decoration: none; color: var(--ink); }}
-"""
+nav#toc ol { list-style: none; margin: 0; padding: 0; }
+nav#toc li { margin: .55em 0; text-indent: 0; }
+nav#toc li.part { margin-top: 1.2em; font-weight: 600; }
+nav#toc li.sec { padding-left: 1.6em; }
+nav#toc a { text-decoration: none; color: $ink; }
+""")
+    return tpl.substitute(style=style_name, ink=s["ink"], accent=s["accent"],
+                          indent=s["epub_indent"], size=s["epub_size"],
+                          leading=s["leading"], rule=rule)
