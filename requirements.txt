@@ -1,0 +1,11 @@
+# SEES PRESS 的核心流水线只依赖 Python 3.10+ 标准库。
+# 下面两项都是可选依赖，缺失时对应支线会自动跳过，不会阻断整本书。
+
+# 生成三段式编辑印刷风封面 PNG
+Pillow>=9.0
+
+# 在成品 PDF 上按章名定位并注入目录书签
+PyMuPDF>=1.23
+
+# 若需要出 PDF，另需本机安装 XeLaTeX（TinyTeX / TeX Live），
+# 并可通过环境变量 SEES_PRESS_TEX_BIN 指定其 bin 目录。

@@ -1,0 +1,61 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install optional dependency
+        run: python -m pip install --upgrade pip && pip install Pillow
+
+      - name: Environment report
+        run: python -m sees_press.cli doctor
+
+      - name: Build the demo book
+        run: python -m sees_press.cli demo --out-dir ./out/ci
+
+      - name: Verify artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob, zipfile, pathlib, sys
+          root = pathlib.Path("out/ci")
+          epubs = sorted(root.glob("*.epub"))
+          assert epubs, "EPUB was not produced"
+          epub = epubs[0]
+          with zipfile.ZipFile(epub) as z:
+              names = z.namelist()
+              first = z.infolist()[0]
+              assert first.filename == "mimetype", "mimetype must be the first entry"
+              assert first.compress_type == zipfile.ZIP_STORED, "mimetype must be STORED"
+              assert z.read("mimetype") == b"application/epub+zip"
+              assert any(n.endswith("nav.xhtml") for n in names), "nav.xhtml missing"
+              assert any(n.endswith("content.opf") for n in names), "content.opf missing"
+              assert all(n.endswith((".xhtml", ".opf", ".ncx", ".xml", ".css", ".png", ".jpg", ".jpeg", ".svg"))
+                         or n in ("mimetype", "META-INF/container.xml")
+                         for n in names), "unexpected entry in package"
+          for suffix in ("preview.html", "cover.png", "report.md", "book.json"):
+              assert list(root.glob(suffix)), f"{suffix} missing"
+          print(f"OK: {epub.name}, {len(names)} entries, all required artifacts present")
+          PY
+
+      - name: Upload demo artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-book
+          path: out/ci/
+          if-no-files-found: warn

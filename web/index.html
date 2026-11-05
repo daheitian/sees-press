@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>见室印制所 · SEES PRESS</title>
+<style>
+:root{
+  --bg:#F3F3F0; --card:#FCFCFA; --line:#E8E7E1; --line2:#F0EFEA;
+  --ink:#2B2B2B; --muted:#92918B; --accent:#1F4E3D; --soft:#F7F7F3;
+  --danger:#B0522D; --r:13px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#DCDAD3;border-radius:8px}
+
+/* ── 窄图标栏 ── */
+.rail{position:fixed;left:0;top:0;bottom:0;width:66px;background:#FBFBF8;
+  border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;
+  padding:22px 0 16px;z-index:30}
+.mark{width:32px;height:32px;border:1.6px solid var(--ink);border-radius:3px;
+  display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:-1px;
+  margin-bottom:44px;cursor:pointer}
+.rail nav{display:flex;flex-direction:column;gap:8px;width:100%;align-items:center}
+.rail button{width:42px;height:42px;border:0;background:transparent;border-radius:9px;
+  display:grid;place-items:center;color:#9B9A93;transition:.16s}
+.rail button:hover{background:var(--soft);color:var(--ink)}
+.rail button.on{background:#EDEDE7;color:var(--ink)}
+.rail svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+.rail .foot{margin-top:auto;font-size:10px;color:#B4B3AC;letter-spacing:.08em;
+  writing-mode:vertical-rl}
+
+/* ── 主区 ── */
+.wrap{margin-left:66px;padding:54px 40px 100px;max-width:1120px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:38px}
+h1{margin:0;font-size:27px;font-weight:650;letter-spacing:.04em}
+.sub{margin:9px 0 0;color:var(--muted);font-size:13px;letter-spacing:.02em}
+.env{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line);background:var(--card);padding:8px 13px;border-radius:99px;cursor:pointer}
+.dot{width:6px;height:6px;border-radius:50%;background:#6E9C7C}
+.dot.bad{background:var(--danger)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:28px 30px;margin-bottom:20px;box-shadow:0 2px 14px rgba(0,0,0,.018)}
+.card h2{margin:0 0 4px;font-size:14px;font-weight:620;letter-spacing:.06em}
+.card .hint{margin:0 0 20px;font-size:12px;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+textarea#src{width:100%;min-height:236px;resize:vertical;border:0;outline:0;background:transparent;
+  font-size:14.5px;line-height:1.95;padding:0;color:var(--ink)}
+textarea#src::placeholder{color:#B9B8B1}
+.editor{border:1px solid var(--line2);border-radius:10px;padding:20px 22px;background:#FFFEFB}
+.editor:focus-within{border-color:#CFCFC6}
+.editor.drag{border-color:var(--accent);background:#F4F8F5}
+.tools{display:flex;gap:8px;align-items:center;padding-top:16px;flex-wrap:wrap}
+.tbtn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 12px;
+  font-size:12px;color:#6C6B65;transition:.15s}
+.tbtn:hover{border-color:#BEBDB4;color:var(--ink)}
+.tbtn.active{border-color:var(--accent);color:var(--accent);background:#F2F7F3}
+.count{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.linkbox{display:none;margin-top:12px;gap:8px}
+.linkbox.show{display:flex}
+.linkbox input{flex:1;border:1px solid var(--line);border-radius:7px;padding:9px 12px;
+  outline:0;background:#fff;font-size:12.5px}
+.filetag{display:none;align-items:center;gap:8px;font-size:12px;background:#EDF3EE;
+  color:var(--accent);padding:6px 11px;border-radius:7px}
+.filetag.show{display:inline-flex}
+.filetag b{font-weight:600}
+
+/* ── 版式 ── */
+.styles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.style{border:1px solid var(--line);background:#fff;border-radius:10px;padding:14px 15px;
+  text-align:left;transition:.16s;position:relative;overflow:hidden}
+.style:hover{border-color:#BEBDB4;transform:translateY(-1px)}
+.style.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.style .sw{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:7px;
+  vertical-align:-1px;border:1px solid rgba(0,0,0,.06)}
+.style .nm{font-size:13px;font-weight:600;letter-spacing:.02em}
+.style .ds{display:block;margin-top:7px;font-size:11px;color:var(--muted);line-height:1.55}
+.style .mt{display:block;margin-top:9px;font-size:10.5px;color:#B0AFA8}
+.style .ck{position:absolute;right:11px;top:11px;width:13px;height:13px;border-radius:50%;
+  border:1px solid #D6D5CE}
+.style.on .ck{background:var(--ink);border-color:var(--ink);
+  box-shadow:inset 0 0 0 3px #fff}
+
+.opts{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:22px;
+  padding-top:20px;border-top:1px solid var(--line2)}
+.opts .label{font-size:11.5px;color:var(--muted);margin-right:3px;letter-spacing:.05em}
+.chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;
+  font-size:12px;color:#6C6B65;transition:.15s}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.mini{padding:5px 11px;font-size:11.5px}
+.spacer{flex:1}
+.primary{border:0;background:var(--ink);color:#fff;border-radius:9px;padding:12px 27px;
+  font-size:13.5px;letter-spacing:.08em;transition:.16s}
+.primary:hover{background:#111}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.ghostbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:11px 17px;
+  font-size:12.5px;color:#6C6B65}
+.ghostbtn:hover{border-color:#BEBDB4;color:var(--ink)}
+
+/* ── 产物 ── */
+.empty{text-align:center;padding:52px 20px;color:#B4B3AC;font-size:12.5px;line-height:2}
+.empty svg{width:30px;height:30px;stroke:#D4D3CB;fill:none;stroke-width:1.3;
+  stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 14px}
+.logs{font:11.5px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace;color:#74736D;
+  background:var(--soft);border:1px solid var(--line2);border-radius:9px;padding:12px 15px;
+  max-height:132px;overflow:auto;margin-bottom:18px;white-space:pre-wrap}
+.artz{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.art{border:1px solid var(--line);background:#fff;border-radius:10px;padding:15px 16px;
+  display:flex;align-items:center;gap:13px;transition:.15s}
+.art:hover{border-color:#C9C8C0}
+.art .ic{width:34px;height:34px;border-radius:8px;background:var(--soft);display:grid;
+  place-items:center;font-size:10px;font-weight:700;color:#7C7B74;letter-spacing:.02em;flex:0 0 34px}
+.art .tx{min-width:0;flex:1}
+.art .tt{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.art .fn{font-size:10.5px;color:var(--muted);margin-top:4px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.art .ops{display:flex;gap:6px}
+.art .ops a,.art .ops button{border:1px solid var(--line);background:#fff;border-radius:6px;
+  padding:5px 10px;font-size:11px;color:#6C6B65;text-decoration:none}
+.art .ops a:hover,.art .ops button:hover{border-color:var(--accent);color:var(--accent)}
+.summary{display:flex;gap:22px;align-items:center;margin-bottom:18px;font-size:12px;color:#6C6B65}
+.summary b{color:var(--ink);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.summary .pill{border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:11px}
+
+/* ── 弹窗 ── */
+.mask{position:fixed;inset:0;background:rgba(30,30,28,.34);backdrop-filter:blur(3px);
+  z-index:60;display:none;align-items:center;justify-content:center;padding:24px}
+.mask.show{display:flex}
+.modal{background:var(--card);border-radius:15px;border:1px solid var(--line);
+  width:min(680px,100%);max-height:84vh;overflow:auto;padding:30px 32px;
+  box-shadow:0 22px 70px rgba(0,0,0,.16)}
+.modal h3{margin:0 0 6px;font-size:17px;font-weight:620;letter-spacing:.03em}
+.modal .mh{font-size:12px;color:var(--muted);margin:0 0 24px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fld label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+.fld input,.fld textarea{width:100%;border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;outline:0;background:#fff;font-size:12.5px}
+.fld input:focus,.fld textarea:focus{border-color:var(--accent)}
+.fld.wide{grid-column:1/-1}
+.fld textarea{min-height:70px;resize:vertical;line-height:1.7}
+.mfoot{display:flex;justify-content:flex-end;gap:9px;margin-top:26px;
+  padding-top:20px;border-top:1px solid var(--line2)}
+.mdbody{font-size:13px;line-height:1.9;color:#4A4944}
+.mdbody h1{font-size:18px;margin:0 0 14px}
+.mdbody h2{font-size:14px;margin:22px 0 8px}
+.mdbody h3{font-size:12.5px;margin:18px 0 6px;color:#6C6B65}
+.mdbody li{margin:3px 0}
+.mdbody code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.mdbody pre{background:var(--soft);padding:13px;border-radius:8px;overflow:auto;font-size:11px}
+.mdbody hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--ink);color:#fff;padding:10px 19px;border-radius:9px;font-size:12.5px;
+  opacity:0;pointer-events:none;transition:.22s;z-index:90}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:900px){.styles{grid-template-columns:repeat(2,1fr)}.artz{grid-template-columns:1fr}
+  .wrap{padding:36px 20px 80px}}
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="mark" title="见室印制所">见</div>
+  <nav>
+    <button class="on" data-tab="make" title="印制">
+      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v17H6.5A2.5 2.5 0 0 0 4 22.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v17h5.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>
+    </button>
+    <button data-tab="out" title="产物">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    </button>
+    <button data-tab="env" title="环境">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2h-4v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1-2.8-2.8.1-.1a1.7 1.7 0 0 0-1.2-2.9h-.2v-4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1L7 4.2l.1.1a1.7 1.7 0 0 0 2.9-1.2v-.2h4v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1 2.8 2.8-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2v4h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </nav>
+  <div class="foot">SEES PRESS 1.0</div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>见室印制所</h1>
+      <p class="sub">输入内容，自动变成排版精良的电子书 · EPUB 3 / PDF / 封面 / 预览 / 质检</p>
+    </div>
+    <div class="env" id="envBtn"><span class="dot" id="envDot"></span><span id="envTxt">检测环境…</span></div>
+  </header>
+
+  <!-- 文稿 -->
+  <section class="card" id="cardMake">
+    <h2>文稿</h2>
+    <p class="hint">粘贴正文、拖入 .md / .txt / .docx / .html，或填一个网址。frontmatter 里可写「书名：」「作者：」「版式：」。</p>
+    <div class="editor" id="editor">
+      <textarea id="src" spellcheck="false" placeholder="在这里粘贴或输入书稿……
+
+支持 Markdown：# 篇　## 章　### 小节
+&gt; 引文　- 列表　**粗体**　*斜体*　[^1] 脚注
+::: epigraph 题词 :::　　纯文本的「第一章」「一、」「前言」也会自动成章。"></textarea>
+    </div>
+    <div class="tools">
+      <button class="tbtn" id="btnFile">选择文件</button>
+      <button class="tbtn" id="btnLink">网址</button>
+      <button class="tbtn" id="btnDemo">载入示例</button>
+      <button class="tbtn" id="btnClear">清空</button>
+      <span class="filetag" id="fileTag"><b id="fileName"></b><span id="fileClear" style="cursor:pointer">×</span></span>
+      <span class="count" id="count">0 字</span>
+    </div>
+    <div class="linkbox" id="linkBox">
+      <input id="linkInput" placeholder="https://… （留空则使用上方正文）"/>
+      <button class="tbtn" id="linkOk">使用此链接</button>
+    </div>
+    <input type="file" id="fileInput" hidden accept=".md,.markdown,.txt,.text,.html,.htm,.docx,.epub,.org,.rst"/>
+  </section>
+
+  <!-- 装帧 -->
+  <section class="card">
+    <h2>装帧</h2>
+    <p class="hint">七种实测过的中文书籍版式，PDF 与 EPUB 共用同一组开本、边距、行距与专色参数。</p>
+    <div class="styles" id="styles"></div>
+    <div class="opts">
+      <span class="label">产出</span>
+      <button class="chip mini on" data-fmt="epub">EPUB 3</button>
+      <button class="chip mini on" data-fmt="pdf">PDF</button>
+      <button class="chip mini on" data-fmt="preview">网页预览</button>
+      <button class="chip mini on" data-fmt="cover">封面</button>
+      <span style="width:14px"></span>
+      <span class="label">规则</span>
+      <button class="chip mini on" id="optSpace">中西文间距</button>
+      <button class="chip mini on" id="optPage">每章起新页</button>
+      <button class="chip mini" id="optQuotes">「」引号</button>
+      <div class="spacer"></div>
+      <button class="ghostbtn" id="btnMeta">书目信息</button>
+      <button class="primary" id="btnBuild">开始印制</button>
+    </div>
+  </section>
+
+  <!-- 产物 -->
+  <section class="card" id="cardOut">
+    <h2>样张与产物</h2>
+    <p class="hint">构建在本机完成，文件只写入 out/ 目录。</p>
+    <div id="outBody">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v17H6.5A2.5 2.5 0 0 0 4 22.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v17h5.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>
+        还没有样张。填一份文稿，选个版式，按「开始印制」。
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 书目信息 -->
+<div class="mask" id="maskMeta"><div class="modal">
+  <h3>书目信息</h3>
+  <p class="mh">不填也能成书；填了会进书名页、版权页与 EPUB 元数据。</p>
+  <div class="grid2" id="metaGrid"></div>
+  <div class="mfoot"><button class="ghostbtn" data-close>取消</button><button class="primary" id="metaSave">保存</button></div>
+</div></div>
+
+<!-- 报告 -->
+<div class="mask" id="maskReport"><div class="modal">
+  <h3>印制质检报告</h3>
+  <p class="mh">三道闸门：书稿 → EPUB 包 / 编译日志 → 汇总。错误会阻断交付标记。</p>
+  <div class="mdbody" id="reportBody"></div>
+  <div class="mfoot"><button class="ghostbtn" data-close>关闭</button></div>
+</div></div>
+
+<!-- 环境 -->
+<div class="mask" id="maskEnv"><div class="modal" style="width:min(560px,100%)">
+  <h3>环境自检</h3>
+  <p class="mh">外部工具「有则复用、无则降级」，核心流程不依赖任何第三方服务。</p>
+  <div class="mdbody" id="envBody">检测中…</div>
+  <div class="mfoot"><button class="ghostbtn" data-close>关闭</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const state = {style:'疏朗留白', formats:new Set(['epub','pdf','preview','cover']),
+               job:null, poll:null, upload:'', space:true, page:true, quotes:'auto',
+               meta:{}, styles:[]};
+
+const META_FIELDS = [
+  ['title','书名'],['subtitle','副题'],['author','作者'],['region','国别（如 美）'],
+  ['translator','译者'],['publisher','出版 / 出品方'],['editor','编者'],
+  ['edition','版次'],['isbn','ISBN'],['subject','主题词（逗号分隔）'],
+  ['series','丛书 / 系列'],['desc','简介','wide']
+];
+
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function md2html(md){
+  let s = esc(md);
+  s = s.replace(/```text([\s\S]*?)```/g,(_,x)=>'<pre>'+x.trim()+'</pre>');
+  s = s.replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>')
+       .replace(/^# (.*)$/gm,'<h1>$1</h1>');
+  s = s.replace(/^- (.*)$/gm,'<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g,'<ul>$1</ul>');
+  s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>');
+  s = s.replace(/^---$/gm,'<hr/>');
+  s = s.split(/\n{2,}/).map(b=> /^<(h\d|ul|pre|hr)/.test(b.trim()) ? b : '<p>'+b.replace(/\n/g,'<br/>')+'</p>').join('');
+  return s;
+}
+
+/* 版式 */
+fetch('/api/styles').then(r=>r.json()).then(d=>{
+  state.styles=d.styles;
+  $('#styles').innerHTML = d.styles.map(s=>`
+    <button class="style ${s.name===state.style?'on':''}" data-style="${esc(s.name)}">
+      <span class="ck"></span>
+      <span class="nm"><span class="sw" style="background:${s.accent}"></span>${esc(s.name)}</span>
+      <span class="ds">${esc(s.desc)}</span>
+      <span class="mt">${esc(s.mood)} · ${s.paper[0]}×${s.paper[1]}mm · 行距 ${s.leading}</span>
+    </button>`).join('');
+  $$('.style').forEach(b=>b.onclick=()=>{
+    state.style=b.dataset.style; $$('.style').forEach(x=>x.classList.toggle('on',x===b));
+  });
+});
+
+/* 环境 */
+fetch('/api/env').then(r=>r.json()).then(d=>{
+  const tex = !String(d.xelatex).includes('未');
+  $('#envTxt').textContent = tex ? '本机排版引擎就绪' : 'PDF 引擎缺失';
+  $('#envDot').classList.toggle('bad',!tex);
+  $('#envBody').innerHTML = '<ul>' + Object.entries(d).map(([k,v])=>
+    `<li><code>${esc(k)}</code>　${esc(v)}</li>`).join('') + '</ul>';
+}).catch(()=>{$('#envTxt').textContent='服务异常';$('#envDot').classList.add('bad')});
+
+/* 书目弹窗 */
+$('#metaGrid').innerHTML = META_FIELDS.map(([k,label,cls])=>`
+  <div class="fld ${cls||''}"><label>${label}</label>
+  ${k==='desc' ? `<textarea data-m="${k}"></textarea>` : `<input data-m="${k}" />`}</div>`).join('');
+
+function openMask(id){ $(id).classList.add('show'); }
+function closeMasks(){ $$('.mask').forEach(m=>m.classList.remove('show')); }
+$$('[data-close]').forEach(b=>b.onclick=closeMasks);
+$$('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)closeMasks()});
+$('#btnMeta').onclick=()=>{
+  $$('[data-m]').forEach(el=>el.value=state.meta[el.dataset.m]||'');
+  openMask('#maskMeta');
+};
+$('#metaSave').onclick=()=>{
+  $$('[data-m]').forEach(el=>state.meta[el.dataset.m]=el.value.trim());
+  closeMasks(); toast('书目信息已保存');
+};
+$('#envBtn').onclick=()=>openMask('#maskEnv');
+$$('.rail button').forEach(b=>b.onclick=()=>{
+  $$('.rail button').forEach(x=>x.classList.toggle('on',x===b));
+  const t=b.dataset.tab;
+  if(t==='env') openMask('#maskEnv');
+  else $(t==='out'?'#cardOut':'#cardMake').scrollIntoView({behavior:'smooth',block:'start'});
+});
+
+/* 输入 */
+const src=$('#src');
+function updCount(){ $('#count').textContent = src.value.length.toLocaleString()+' 字'; }
+src.oninput=updCount; updCount();
+$('#btnClear').onclick=()=>{src.value='';state.upload='';$('#fileTag').classList.remove('show');
+  $('#linkInput').value='';updCount();};
+$('#btnDemo').onclick=async()=>{
+  const demo=`---
+书名：论闲暇
+副题：文化的基础
+作者：约瑟夫·皮珀
+国别：德
+译者：刘森尧
+出版方：见室小册
+版式：疏朗留白
+---
+
+# 论闲暇
+
+## 第一章　闲暇不是空闲
+
+::: epigraph
+闲暇，是灵魂的状态。
+——柏拉图
+:::
+
+我们今天谈到闲暇，往往先想到「没有事情要做」。这其实是把闲暇看成了工作的余额：一段时间被工作填满之后，剩下的那点边角料。[^1]
+
+真正的闲暇不是空闲，也不是休息。休息仍以工作为参照——休息是为了恢复劳动力，它服务的仍是工作。闲暇却**不以任何外在目的为尺度**，它自身就是目的。
+
+> 当我们真正处于闲暇之中，时间不再被消耗，而是被度过。
+
+### 三种误解
+
+- 闲暇等于娱乐：娱乐需要不断更新的刺激，闲暇不需要。
+- 闲暇等于无所事事：无所事事是空缺，闲暇是充盈。
+- 闲暇需要有钱有闲：它是心灵的一种能力，不是账户的一种状态。
+
+## 第二章　与世界保持非功用的关系
+
+一个只以「有什么用」来打量世界的人，看不见世界本身。他能看见木材、看见矿脉、看见流量，却看不见一棵树。
+
+节日是闲暇最古老的形态。在节日里，人们暂停计算，共同确认某件**不产生收益因而珍贵**的事。这一点，古今并无不同。
+
+[^1]: 此处区分「空闲」与「闲暇」，沿用原文 *leisure* 与 *idleness* 的对举。
+`;
+  src.value=demo; state.upload=''; updCount(); toast('已载入示例文稿');
+};
+$('#btnLink').onclick=()=>$('#linkBox').classList.toggle('show');
+$('#linkOk').onclick=()=>{ if($('#linkInput').value.trim()) toast('将使用链接作为输入'); $('#linkBox').classList.remove('show'); };
+$('#btnFile').onclick=()=>$('#fileInput').click();
+$('#fileInput').onchange=e=>{const f=e.target.files[0]; if(f) readFile(f);};
+$('#fileClear').onclick=()=>{state.upload='';$('#fileTag').classList.remove('show');};
+
+function readFile(f){
+  const bin = /\.(docx|epub|pdf)$/i.test(f.name);
+  const r=new FileReader();
+  r.onload=()=>{
+    fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:f.name, content:bin? String(r.result).split(',')[1] : r.result,
+                           base64:bin})})
+      .then(x=>x.json()).then(d=>{
+        state.upload=d.path;
+        $('#fileName').textContent=f.name; $('#fileTag').classList.add('show');
+        if(!bin) src.value=String(r.result).slice(0,200000);
+        updCount(); toast('已载入 '+f.name);
+      });
+  };
+  if(bin) r.readAsDataURL(f); else r.readAsText(f,'utf-8');
+}
+const ed=$('#editor');
+['dragenter','dragover'].forEach(t=>ed.addEventListener(t,e=>{e.preventDefault();ed.classList.add('drag')}));
+['dragleave','drop'].forEach(t=>ed.addEventListener(t,e=>{e.preventDefault();ed.classList.remove('drag')}));
+ed.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) readFile(f);});
+
+/* 开关 */
+$$('[data-fmt]').forEach(b=>b.onclick=()=>{
+  const f=b.dataset.fmt;
+  if(state.formats.has(f)) state.formats.delete(f); else state.formats.add(f);
+  b.classList.toggle('on',state.formats.has(f));
+});
+$('#optSpace').onclick=e=>{state.space=!state.space;e.target.classList.toggle('on',state.space)};
+$('#optPage').onclick=e=>{state.page=!state.page;e.target.classList.toggle('on',state.page)};
+$('#optQuotes').onclick=e=>{state.quotes=state.quotes==='auto'?'corner':'auto';
+  e.target.classList.toggle('on',state.quotes==='corner')};
+
+/* 构建 */
+$('#btnBuild').onclick=()=>{
+  const link=$('#linkInput').value.trim();
+  let source = state.upload || link || src.value;
+  if(!String(source).trim()){ toast('先放点内容进来'); src.focus(); return; }
+  const body={source, ...state.meta, style:state.style,
+    formats:[...state.formats], cjk_spacing:state.space,
+    chapter_newpage:state.page, quote_style:state.quotes};
+  $('#btnBuild').disabled=true;
+  $('#outBody').innerHTML='<div class="logs" id="logs">任务排队中…</div>';
+  fetch('/api/build',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(d=>{
+      if(d.error) throw new Error(d.error);
+      state.job=d.job; poll();
+    }).catch(e=>{toast('启动失败：'+e.message);$('#btnBuild').disabled=false;});
+};
+
+function poll(){
+  clearInterval(state.poll);
+  state.poll=setInterval(()=>{
+    fetch('/api/job?id='+encodeURIComponent(state.job)).then(r=>r.json()).then(d=>{
+      const box=$('#logs');
+      if(box) box.textContent=d.logs.join('\n'), box.scrollTop=box.scrollHeight;
+      if(d.status!=='running'){
+        clearInterval(state.poll); $('#btnBuild').disabled=false;
+        renderOut(d);
+      }
+    });
+  },700);
+}
+
+function renderOut(d){
+  const r=d.result||{}; const a=r.artifacts||{}; const st=r.stats||{};
+  const keys=Object.keys(a).filter(k=>a[k]);
+  const nice=k=>({'EPUB 3':'EPUB','PDF':'PDF','封面':'封面','网页预览':'预览',
+    '质检报告':'报告','正文源 body.tex':'正文源','整书模板 book.tex':'模板',
+    '书稿 IR':'书稿','校验记录':'校验','错误日志':'日志'})[k]||k;
+  let h=`<div class="summary">
+      <span><b>${st.chapters||0}</b> 章</span>
+      <span><b>${(st.words||0).toLocaleString()}</b> 字</span>
+      <span><b>${st.notes||0}</b> 脚注</span>
+      <span class="pill">${d.status==='done'?'质检通过':'有阻断项'} · 错误 ${st.errors||0} / 警告 ${st.warnings||0}</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="ghostbtn" id="btnReport">查看质检报告</button>
+    </div>`;
+  h+='<div class="logs" style="max-height:96px">'+esc((d.logs||[]).join('\n'))+'</div>';
+  h+='<div class="artz">'+keys.map(k=>{
+    const isView=/预览|报告|正文源|模板|书稿|校验|日志/.test(k);
+    const ext=(a[k].split('.').pop()||'').toUpperCase().slice(0,4);
+    return `<div class="art"><div class="ic">${esc(nice(k).slice(0,2))}</div>
+      <div class="tx"><div class="tt">${esc(nice(k))}</div><div class="fn">${esc(a[k].split(/[\\/]/).pop())}</div></div>
+      <div class="ops">
+        <a href="/api/file?job=${encodeURIComponent(d.id)}&key=${encodeURIComponent(k)}" target="_blank">打开</a>
+        ${isView?'':`<a href="/api/file?job=${encodeURIComponent(d.id)}&key=${encodeURIComponent(k)}&dl=1">下载</a>`}
+      </div></div>`;
+  }).join('')+'</div>';
+  $('#outBody').innerHTML=h;
+  $('#btnReport').onclick=async()=>{
+    const j=await (await fetch('/api/report?job='+encodeURIComponent(d.id))).json();
+    $('#reportBody').innerHTML=md2html(j.markdown||'（暂无报告）');
+    openMask('#maskReport');
+  };
+  $('#cardOut').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+</script>
+</body>
+</html>

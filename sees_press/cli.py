@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""命令行入口。
+
+  python -m sees_press.cli build 稿件.md --title "书名" --author "作者" --style 疏朗留白
+  python -m sees_press.cli build https://example.com/essay --formats epub,pdf
+  python -m sees_press.cli styles
+  python -m sees_press.cli doctor
+  python -m sees_press.cli demo
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from .pipeline import build, BuildOptions
+from .styles import STYLES
+
+
+def _opt_from_args(a) -> BuildOptions:
+    keys = ("title", "subtitle", "author", "region", "translator", "publisher",
+            "editor", "edition", "isbn", "identifier", "desc", "subject",
+            "language", "rights", "series", "style", "quote_style",
+            "cjk_spacing", "chapter_newpage", "cover", "cover_ratio",
+            "out_dir", "use_legacy_validator", "emit_body", "emit_ir")
+    kw = {k: getattr(a, k) for k in keys if hasattr(a, k)}
+    kw["formats"] = tuple(x.strip() for x in a.formats.split(",") if x.strip())
+    return BuildOptions(**kw)
+
+
+def cmd_build(a) -> int:
+    opt = _opt_from_args(a)
+    res = build(a.source, opt, progress=lambda m: print("  " + m, flush=True))
+    print("\n" + "=" * 58)
+    print(f"  见室印制所 · {'完成' if res.ok else '有阻断项'}")
+    print("=" * 58)
+    for k, v in res.artifacts.items():
+        print(f"  {k:<18} {v}")
+    print(f"\n  错误 {res.stats.get('errors', 0)} / 警告 {res.stats.get('warnings', 0)}")
+    print(f"  工作目录：{res.workdir}")
+    if not res.ok:
+        for i in res.issues:
+            if i.level == "error":
+                print(f"  [✗] {i.code}: {i.msg}")
+    return 0 if res.ok else 1
+
+
+def cmd_styles(_a) -> int:
+    print(f"{'版式':<10}{'开本 mm':<14}{'行距':<7}{'专色':<10}气质")
+    print("-" * 72)
+    for name, s in STYLES.items():
+        print(f"{name:<10}{str(s['paper'][0]) + '×' + str(s['paper'][1]):<14}"
+              f"{s['leading']:<7}{s['accent']:<10}{s['desc']}")
+    return 0
+
+
+def cmd_doctor(_a) -> int:
+    from . import tools
+    print("环境自检")
+    print("-" * 58)
+    for k, v in tools.environment_report().items():
+        print(f"  {k:<30} {v}")
+    return 0
+
+
+def cmd_demo(a) -> int:
+    demo = Path(__file__).resolve().parent.parent / "examples" / "demo.md"
+    if not demo.exists():
+        print("找不到 examples/demo.md")
+        return 1
+    opt = BuildOptions(style=a.style or "疏朗留白", out_dir=a.out_dir or "")
+    res = build(str(demo), opt, progress=lambda m: print("  " + m, flush=True))
+    print(f"\n产物目录：{res.workdir}")
+    for k, v in res.artifacts.items():
+        print(f"  {k:<18} {v}")
+    return 0 if res.ok else 1
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(prog="sees-press", description="见室印制所 · 输入内容，自动成书")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    b = sub.add_parser("build", help="把文稿做成电子书")
+    b.add_argument("source", help="正文 / .md .txt .docx .html 文件路径 / 目录 / URL")
+    for k in ("title", "subtitle", "author", "region", "translator", "publisher",
+              "editor", "edition", "isbn", "identifier", "desc", "subject", "series", "cover"):
+        b.add_argument("--" + k.replace("_", "-"), default="")
+    b.add_argument("--style", default="", help="版式名，见 `styles`；留空则读稿件 frontmatter")
+    b.add_argument("--quote-style", default="auto", choices=["auto", "corner", "curly", "straight"])
+    b.add_argument("--formats", default="epub,pdf,cover,preview")
+    b.add_argument("--out-dir", default="")
+    b.add_argument("--language", default="zh-CN")
+    b.add_argument("--rights", default="")
+    b.add_argument("--cover-ratio", default="2:3", choices=["2:3", "3:4"])
+    b.add_argument("--no-cjk-spacing", action="store_false", dest="cjk_spacing")
+    b.add_argument("--no-chapter-newpage", action="store_false", dest="chapter_newpage")
+    b.add_argument("--no-legacy-validator", action="store_false", dest="use_legacy_validator")
+    b.add_argument("--no-body", action="store_false", dest="emit_body")
+    b.add_argument("--no-ir", action="store_false", dest="emit_ir")
+    b.set_defaults(func=cmd_build, cjk_spacing=True, chapter_newpage=True,
+                   use_legacy_validator=True, emit_body=True, emit_ir=True)
+
+    sub.add_parser("styles", help="列出七种版式").set_defaults(func=cmd_styles)
+    sub.add_parser("doctor", help="环境自检").set_defaults(func=cmd_doctor)
+    d = sub.add_parser("demo", help="用示例文稿跑一遍全流程")
+    d.add_argument("--style", default="疏朗留白")
+    d.add_argument("--out-dir", default="")
+    d.set_defaults(func=cmd_demo)
+
+    a = p.parse_args(argv)
+    return a.func(a)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
