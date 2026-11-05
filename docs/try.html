@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>版式试验台 · 见室印制所 SEES PRESS</title>
+<style>
+:root{--bg:#F7F4ED;--ink:#30343A;--soft:#7A7D7F;--line:#DCD7CB;--paper:#FDFBF6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,Georgia,serif;font-size:15px;-webkit-font-smoothing:antialiased}
+.sans{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.94);position:sticky;top:0;z-index:20;backdrop-filter:blur(8px)}
+.bar{max-width:1280px;margin:0 auto;padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{font-size:16px;letter-spacing:.08em}
+.brand small{font-size:10px;letter-spacing:.2em;color:var(--soft);margin-left:10px}
+.bar nav{display:flex;gap:22px;font-size:12.5px}
+.bar a{border-bottom:1px solid transparent;padding-bottom:2px}
+.bar a:hover{border-color:var(--ink)}
+.toolbar{max-width:1280px;margin:0 auto;padding:20px 28px 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.toolbar .label{font-size:11px;letter-spacing:.18em;color:var(--soft);margin-right:8px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--ink);padding:7px 13px;font-size:12.5px;cursor:pointer;transition:all .18s;font-family:inherit}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#FDFBF6}
+.toolbar .spacer{flex:1}
+.act{border:1px solid var(--line);background:var(--paper);padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--ink)}
+.act:hover{border-color:var(--ink)}
+.layout{max-width:1280px;margin:0 auto;padding:22px 28px 60px;display:grid;grid-template-columns:.85fr 1.15fr;gap:28px;align-items:start}
+.panel{border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;min-height:620px}
+.panel-head{padding:12px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;font-size:11px;letter-spacing:.12em;color:var(--soft)}
+textarea{flex:1;min-height:560px;border:0;outline:0;resize:vertical;padding:22px 24px;background:transparent;color:var(--ink);font:14px/1.95 "Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif;letter-spacing:.01em}
+.stage{padding:26px;background:#EFEBE1;border:1px solid var(--line);display:flex;justify-content:center;min-height:620px}
+.sheet{
+  width:100%;max-width:520px;min-height:660px;background:var(--sp,#FDFBF6);color:var(--si,#2F2F2F);
+  padding:var(--spad,46px 44px);box-shadow:0 6px 26px rgba(48,52,58,.13);
+  font-size:var(--ssize,15px);line-height:var(--slead,1.85);text-align:justify;
+  font-family:var(--sfont,"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif);
+  transition:all .25s ease;
+}
+.sheet .running{font-size:10px;letter-spacing:.2em;color:var(--sa,#3A3A3A);opacity:.65;text-align:center;padding-bottom:8px;margin-bottom:34px;border-bottom:1px solid var(--sa,#3A3A3A);display:var(--shead,block)}
+.sheet h1{font-size:1.5em;font-weight:500;letter-spacing:.1em;margin:0 0 .9em;text-align:left;border-bottom:1px solid var(--sa,#3A3A3A);padding-bottom:.5em}
+.sheet h2{font-size:1.16em;font-weight:500;letter-spacing:.08em;margin:2em 0 .8em;text-align:left}
+.sheet h3{font-size:1.02em;font-weight:500;margin:1.6em 0 .6em;text-align:left}
+.sheet p{margin:0;text-indent:var(--sindent,2em)}
+.sheet h1+p,.sheet h2+p,.sheet h3+p,.sheet blockquote+p,.sheet ul+p{text-indent:0}
+.sheet blockquote{margin:1.4em 0 1.4em 1.5em;padding-left:1em;border-left:2px solid var(--sa,#3A3A3A);color:var(--soft);font-size:.94em}
+.sheet blockquote p{text-indent:0}
+.sheet ul{margin:1em 0 1em 1.2em;padding:0}
+.sheet li{margin:.35em 0}
+.sheet hr{border:0;border-top:1px solid var(--sa,#3A3A3A);opacity:.35;margin:2.4em auto;width:36%}
+.sheet code{font:12px ui-monospace,Consolas,monospace;background:rgba(0,0,0,.05);padding:1px 4px}
+.sheet strong{font-weight:600}
+.note{max-width:1280px;margin:0 auto;padding:0 28px 60px;font-size:12px;color:var(--soft);line-height:1.9}
+.note b{color:var(--ink);font-weight:500}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.panel{min-height:auto}textarea{min-height:260px}.stage{min-height:auto}.sheet{min-height:520px}.bar nav a:nth-child(2){display:none}}
+@media print{
+  header,.toolbar,.panel,.note{display:none!important}
+  body{background:#fff}
+  .layout{display:block;padding:0;margin:0}
+  .stage{border:0;background:#fff;padding:0;min-height:0;display:block}
+  .sheet{box-shadow:none;max-width:none;min-height:0;width:100%;padding:18mm 20mm}
+  @page{size:A5;margin:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="brand" href="index.html">见室印制所 <small class="sans">SEES PRESS / TYPE LAB</small></a>
+    <nav class="sans">
+      <a href="index.html">项目首页</a>
+      <a href="preview.html">在线翻看成品</a>
+      <a href="https://github.com/daheitian/sees-press">GitHub 源码</a>
+    </nav>
+  </div>
+</header>
+
+<div class="toolbar sans">
+  <span class="label">选择版式</span>
+  <span id="chips" style="display:flex;flex-wrap:wrap;gap:8px"></span>
+  <span class="spacer"></span>
+  <button class="act" id="reset">恢复示例文字</button>
+  <button class="act" id="print">打印 / 存为 PDF</button>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-head sans"><span>输入 · MARKDOWN</span><span id="meta">实时渲染</span></div>
+    <textarea id="src" spellcheck="false" aria-label="输入 Markdown 正文"></textarea>
+  </div>
+  <div class="stage">
+    <article class="sheet" id="sheet"></article>
+  </div>
+</div>
+
+<p class="note"><b>说明：</b>这里只做版式预览——把七种装帧参数（开本比例、边距、行距、专色、书眉、字体）映射到浏览器里，方便你在动手前挑定气质。真正的 EPUB 3、可印刷 PDF、封面、语义目录与 23 项质检，由本机运行的 SEES PRESS 生成；<a href="index.html" style="border-bottom:1px solid var(--line)">回首页下载源码或成品</a>。示例文字仅用于演示排版。</p>
+
+<script>
+const DEMO = `# 闲暇不是空闲
+
+闲暇，是灵魂的状态。当我们不再计算，时间才第一次属于我们。
+
+我们今天谈到「闲暇」，往往先想到「没有事情要做」。这其实是把闲暇看成了工作的余额：一段时间被工作填满之后，剩下的那点边角料。
+
+> 真正的闲暇不是空闲，也不是休息。休息仍以工作为参照，它服务的是工作；闲暇却不以任何外在目的为尺度，它自身就是目的。
+
+当我们真正处于闲暇之中，时间不再被消耗，而是被度过。
+
+## 三种误解
+
+- 闲暇等于娱乐：娱乐需要不断更新的刺激，闲暇不需要。
+- 闲暇等于无所事事：无所事事是空缺，闲暇是充满。
+- 闲暇等于奢侈：它不要求多余的东西，只要求不被催促。
+
+---
+
+节日与共同的时间
+
+节日是闲暇最古老的形态。在节日里，人们暂停计算，共同确认某件不产生效益因而珍贵的事，这一点，古今并无不同。
+
+于是我们会发现，闲暇并不私人。它要求一种共同的、被允许浪费的时间；没有这种时间，共同体就只剩下一份排得满满的日程表。`;
+
+const STYLES = [
+  {name:"疏朗留白",id:"airy",ink:"#2F2F2F",accent:"#3A3A3A",paper:"#FDFBF6",lead:1.85,indent:"2em",size:15,pad:"52px 46px",head:1,font:'"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif'},
+  {name:"墨绿专色",id:"forest",ink:"#25282A",accent:"#1F4E3D",paper:"#FCFAF4",lead:1.70,indent:"2em",size:15,pad:"44px 42px",head:1,font:'"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif'},
+  {name:"文艺细线",id:"line",ink:"#2B2B2B",accent:"#B0522D",paper:"#FEFBF5",lead:1.75,indent:"2em",size:15,pad:"46px 44px",head:1,font:'"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif'},
+  {name:"窄边密排",id:"dense",ink:"#1A1A1A",accent:"#1A1A1A",paper:"#FAF8F2",lead:1.50,indent:"2em",size:14,pad:"32px 30px",head:1,font:'"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif'},
+  {name:"撞色色块",id:"pop",ink:"#1F2E30",accent:"#E8622D",paper:"#FFFCF6",lead:1.70,indent:"0",size:15,pad:"48px 40px",head:0,font:'-apple-system,"PingFang SC","Microsoft YaHei",sans-serif'},
+  {name:"素雅留白",id:"quiet",ink:"#333A33",accent:"#6E7F6B",paper:"#FCFAF3",lead:1.90,indent:"2em",size:15.5,pad:"58px 48px",head:0,font:'"Kaiti SC","STKaiti",KaiTi,"Songti SC",serif'},
+  {name:"框线灰调",id:"frame",ink:"#2A2A2A",accent:"#8A8A8A",paper:"#FAF8F2",lead:1.65,indent:"2em",size:14.8,pad:"44px 40px",head:1,font:'"Songti SC","Source Han Serif SC","Noto Serif CJK SC",SimSun,serif'}
+];
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function inline(s){
+  return esc(s)
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<em>$2</em>")
+    .replace(/「([^」]+)」/g,"「$1」");
+}
+function md(src){
+  const out=[]; let para=[], quote=[], list=[];
+  const flushP=()=>{if(para.length){out.push("<p>"+inline(para.join(" "))+"</p>");para=[]}};
+  const flushQ=()=>{if(quote.length){out.push("<blockquote><p>"+inline(quote.join(" "))+"</p></blockquote>");quote=[]}};
+  const flushL=()=>{if(list.length){out.push("<ul>"+list.map(x=>"<li>"+inline(x)+"</li>").join("")+"</ul>");list=[]}};
+  const flush=()=>{flushP();flushQ();flushL()};
+  src.split(/\r?\n/).forEach(raw=>{
+    const l=raw.trim();
+    if(!l){flush();return}
+    if(/^(-{3,}|\*{3,})$/.test(l)){flush();out.push("<hr/>");return}
+    const h=l.match(/^(#{1,3})\s+(.*)$/);
+    if(h){flush();const n=h[1].length;out.push(`<h${n}>${inline(h[2])}</h${n}>`);return}
+    if(/^>\s?/.test(l)){flushP();flushL();quote.push(l.replace(/^>\s?/,""));return}
+    if(/^[-*+]\s+/.test(l)){flushP();flushQ();list.push(l.replace(/^[-*+]\s+/,""));return}
+    flushQ();flushL();para.push(l);
+  });
+  flush();
+  return out.join("\n");
+}
+function apply(s){
+  const el=document.getElementById("sheet");
+  el.style.setProperty("--si",s.ink);
+  el.style.setProperty("--sa",s.accent);
+  el.style.setProperty("--sp",s.paper);
+  el.style.setProperty("--slead",s.lead);
+  el.style.setProperty("--sindent",s.indent);
+  el.style.setProperty("--ssize",s.size+"px");
+  el.style.setProperty("--spad",s.pad);
+  el.style.setProperty("--shead",s.head?"block":"none");
+  el.style.setProperty("--sfont",s.font);
+  el.querySelectorAll(".running").forEach(n=>n.textContent="见室印制所 · "+s.name);
+}
+function render(){
+  const src=document.getElementById("src").value;
+  document.getElementById("sheet").innerHTML='<div class="running sans"></div>'+md(src);
+  apply(STYLES[current]);
+  const chars=src.replace(/\s/g,"").length;
+  document.getElementById("meta").textContent=chars+" 字 · "+STYLES[current].name;
+}
+let current=0;
+document.getElementById("chips").innerHTML=STYLES.map((s,i)=>`<button class="chip${i===0?" on":""}" data-i="${i}">${s.name}</button>`).join("");
+document.getElementById("chips").addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b)return;
+  current=+b.dataset.i;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));
+  render();
+});
+document.getElementById("src").addEventListener("input",render);
+document.getElementById("reset").addEventListener("click",()=>{document.getElementById("src").value=DEMO;render()});
+document.getElementById("print").addEventListener("click",()=>window.print());
+document.getElementById("src").value=DEMO;
+render();
+</script>
+</body>
+</html>
