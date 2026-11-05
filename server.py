@@ -64,8 +64,11 @@ def _file(handler, path: Path, download: bool = False):
     handler.send_header("Content-Length", str(len(data)))
     handler.send_header("Accept-Ranges", "bytes")
     if download:
+        from urllib.parse import quote
+        ascii_name = path.name.encode("ascii", "ignore").decode() or "book"
         handler.send_header("Content-Disposition",
-                            f'attachment; filename="{path.name.encode("ascii", "ignore").decode() or "book"}"')
+                            f"attachment; filename=\"{ascii_name}\"; "
+                            f"filename*=UTF-8''{quote(path.name)}")
     handler.end_headers()
     handler.wfile.write(data)
 
@@ -139,6 +142,14 @@ class Handler(BaseHTTPRequestHandler):
                 dest = UPLOADS / f"{int(time.time() * 1000)}-{name}"
                 dest.write_bytes(data)
                 return _json(self, {"path": str(dest), "name": name})
+            if p == "/api/diagnose":
+                f = Path(str(body.get("path") or ""))
+                if not f.is_file() or not f.resolve().is_relative_to(ROOT.resolve()):
+                    return _json(self, {"error": "只允许诊断本工作区内的文件"}, 403)
+                if f.suffix.lower() != ".pdf":
+                    return _json(self, {"error": "不是 PDF 文件"}, 400)
+                from sees_press.pdfextract import diagnose_only
+                return _json(self, diagnose_only(f))
             if p == "/api/build":
                 jid = time.strftime("%Y%m%d-%H%M%S") + "-" + str(int(time.time() * 1000) % 1000)
                 jobdir = OUT / jid
@@ -177,6 +188,7 @@ class Handler(BaseHTTPRequestHandler):
                 "quote_style": str(body.get("quote_style", "auto")),
                 "cjk_spacing": bool(body.get("cjk_spacing", True)),
                 "chapter_newpage": bool(body.get("chapter_newpage", True)),
+                "keep_pdf_headers": bool(body.get("keep_pdf_headers", False)),
                 "cover": str(body.get("cover", "")),
                 "cover_ratio": str(body.get("cover_ratio", "2:3")),
                 "formats": tuple(body.get("formats", ["epub", "pdf", "cover", "preview"])),

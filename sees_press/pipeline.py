@@ -55,6 +55,7 @@ class BuildOptions:
     quote_style: str = "auto"          # auto | corner | curly | straight
     cjk_spacing: bool = True           # EPUB 中西文细空格
     chapter_newpage: bool = True       # PDF 每章起新页
+    keep_pdf_headers: bool = False     # PDF 输入时保留页眉页脚（默认剔除）
     cover: str = ""                    # 自带封面图，接管程序化封面
     cover_ratio: str = "2:3"
     # 产出
@@ -118,12 +119,31 @@ def build(source: str, options: BuildOptions | None = None,
     try:
         # ── 1. 输入 ──────────────────────────────────────────────
         emit("读取输入…")
-        raw, name = read_source(source, base=out.parent)
-        emit(f"来源：{name}　{len(raw):,} 字符")
-
-        base_dir = None
-        if Path(str(source)).exists() and Path(str(source)).is_file():
-            base_dir = Path(str(source)).parent
+        src_str = str(source)
+        src_path = Path(src_str) if len(src_str) < 500 else None
+        is_pdf = bool(src_path and src_path.is_file()
+                      and src_path.suffix.lower() == ".pdf")
+        pdf_diag: dict = {}
+        if is_pdf:
+            # PDF 只是素材入口：先重建语义书稿，再由同一份 IR 派生所有出口。
+            # 抽取稿单独落盘，便于人工校对后改投 source.md 重跑。
+            from .pdfextract import extract_pdf
+            ex = extract_pdf(src_path, assets_dir=out / "pdf_assets",
+                             title=opt.title, author=opt.author,
+                             keep_headers=opt.keep_pdf_headers)
+            raw, name = ex.markdown, src_path.name
+            pdf_diag = ex.diagnostics
+            (out / "source.md").write_text(raw, encoding="utf-8")
+            res.artifacts["PDF 抽取稿"] = str(out / "source.md")
+            emit(f"PDF 重建：{pdf_diag['pages']} 页 → {pdf_diag['chapters']} 章 / "
+                 f"{pdf_diag['paragraphs']} 段，剔除前置页 {pdf_diag['front_pages']} 页 + "
+                 f"页眉页码 {pdf_diag['dropped_headers']} 行，"
+                 f"字符保留率 {pdf_diag['retention']:.0%}")
+            base_dir = out
+        else:
+            raw, name = read_source(source, base=out.parent)
+            emit(f"来源：{name}　{len(raw):,} 字符")
+            base_dir = src_path.parent if src_path and src_path.is_file() else None
         # 版式优先级：命令行/GUI 显式指定 > 稿件 frontmatter > 默认
         from .ingest import split_frontmatter
         from .styles import STYLES, DEFAULT_STYLE
@@ -141,6 +161,10 @@ def build(source: str, options: BuildOptions | None = None,
 
         # ── 2. 闸门 A ────────────────────────────────────────────
         gates: dict[str, list[Issue]] = {"闸门 A · 书稿": lint.gate_a(book)}
+        if pdf_diag:
+            gates["闸门 A · PDF 重建"] = [
+                Issue("warn", "PDF 重建", w) for w in pdf_diag.get("warnings", [])
+            ]
         blockers = [i for i in gates["闸门 A · 书稿"] if i.level == "error"]
         emit(f"书稿质检：{len(gates['闸门 A · 书稿'])} 条（阻断 {len(blockers)}）")
 
@@ -232,6 +256,10 @@ def build(source: str, options: BuildOptions | None = None,
         report = lint.render_report(book, gates,
                                     {k: v for k, v in res.artifacts.items() if v},
                                     extra=extras_out)
+        if pdf_diag:
+            from .pdfextract import diagnostics_markdown
+            block = diagnostics_markdown(pdf_diag)
+            report = report.replace("\n---\n", "\n" + block + "\n\n---\n", 1)
         (out / "report.md").write_text(report, encoding="utf-8")
         res.artifacts["质检报告"] = str(out / "report.md")
         res.report = report

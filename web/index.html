@@ -66,6 +66,11 @@ textarea#src::placeholder{color:#B9B8B1}
 .tbtn:hover{border-color:#BEBDB4;color:var(--ink)}
 .tbtn.active{border-color:var(--accent);color:var(--accent);background:#F2F7F3}
 .count{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pdfdiag{display:none;margin-top:14px;padding:11px 13px;border:1px solid var(--line);
+  border-radius:9px;background:#F7F8F5;font-size:12px;line-height:1.85;color:var(--muted)}
+.pdfdiag.show{display:block}
+.pdfdiag b{color:var(--ink);font-weight:600}
+.pdfdiag .warn{color:#A45B3C}
 .linkbox{display:none;margin-top:12px;gap:8px}
 .linkbox.show{display:flex}
 .linkbox input{flex:1;border:1px solid var(--line);border-radius:7px;padding:9px 12px;
@@ -196,7 +201,7 @@ textarea#src::placeholder{color:#B9B8B1}
   <!-- 文稿 -->
   <section class="card" id="cardMake">
     <h2>文稿</h2>
-    <p class="hint">粘贴正文、拖入 .md / .txt / .docx / .html，或填一个网址。frontmatter 里可写「书名：」「作者：」「版式：」。</p>
+    <p class="hint">粘贴正文、拖入 <b>.pdf</b> / .md / .txt / .docx / .html，或填一个网址。PDF 会先重建章节、段落与脚注再排版，抽取稿可下载校对；frontmatter 里可写「书名：」「作者：」「版式：」。</p>
     <div class="editor" id="editor">
       <textarea id="src" spellcheck="false" placeholder="在这里粘贴或输入书稿……
 
@@ -212,11 +217,12 @@ textarea#src::placeholder{color:#B9B8B1}
       <span class="filetag" id="fileTag"><b id="fileName"></b><span id="fileClear" style="cursor:pointer">×</span></span>
       <span class="count" id="count">0 字</span>
     </div>
+    <div class="pdfdiag" id="pdfDiag"></div>
     <div class="linkbox" id="linkBox">
       <input id="linkInput" placeholder="https://… （留空则使用上方正文）"/>
       <button class="tbtn" id="linkOk">使用此链接</button>
     </div>
-    <input type="file" id="fileInput" hidden accept=".md,.markdown,.txt,.text,.html,.htm,.docx,.epub,.org,.rst"/>
+    <input type="file" id="fileInput" hidden accept=".pdf,.md,.markdown,.txt,.text,.html,.htm,.docx,.epub,.org,.rst"/>
   </section>
 
   <!-- 装帧 -->
@@ -363,7 +369,7 @@ const src=$('#src');
 function updCount(){ $('#count').textContent = src.value.length.toLocaleString()+' 字'; }
 src.oninput=updCount; updCount();
 $('#btnClear').onclick=()=>{src.value='';state.upload='';$('#fileTag').classList.remove('show');
-  $('#linkInput').value='';updCount();};
+  $('#pdfDiag').classList.remove('show');$('#linkInput').value='';updCount();};
 $('#btnDemo').onclick=async()=>{
   const demo=`---
 书名：论闲暇
@@ -412,8 +418,30 @@ $('#btnFile').onclick=()=>$('#fileInput').click();
 $('#fileInput').onchange=e=>{const f=e.target.files[0]; if(f) readFile(f);};
 $('#fileClear').onclick=()=>{state.upload='';$('#fileTag').classList.remove('show');};
 
+function diagnosePdf(path,name){
+  fetch('/api/diagnose',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path})})
+    .then(r=>r.json()).then(d=>{
+      const box=$('#pdfDiag');
+      if(d.error){
+        box.innerHTML='<b>PDF 体检</b>　<span class="warn">'+esc(d.error)+'</span>';
+      }else{
+        const w=(d.warnings&&d.warnings.length)
+          ? '<br><span class="warn">'+esc(d.warnings.join('；'))+'</span>' : '';
+        box.innerHTML='<b>PDF 重建体检 · '+esc(name)+'</b><br>'+
+          d.pages+' 页 → '+d.chapters+' 章 / '+d.paragraphs+' 段　·　字符保留率 '+
+          (d.retention*100).toFixed(1)+'%<br>'+
+          '剔除前置页 '+d.front_pages+' 页 / 目录页 '+d.toc_pages+' 页 / 页眉页码 '+
+          d.dropped_headers+' 行　·　插图 '+d.images+' · 脚注 '+d.footnotes+
+          ' · 双栏 '+d.two_col_pages+' 页'+w;
+      }
+      box.classList.add('show');
+    }).catch(()=>{});
+}
+
 function readFile(f){
   const bin = /\.(docx|epub|pdf)$/i.test(f.name);
+  const pdf = /\.pdf$/i.test(f.name);
   const r=new FileReader();
   r.onload=()=>{
     fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -423,7 +451,9 @@ function readFile(f){
         state.upload=d.path;
         $('#fileName').textContent=f.name; $('#fileTag').classList.add('show');
         if(!bin) src.value=String(r.result).slice(0,200000);
-        updCount(); toast('已载入 '+f.name);
+        if(pdf){ $('#pdfDiag').classList.remove('show'); diagnosePdf(d.path,f.name); }
+        else $('#pdfDiag').classList.remove('show');
+        updCount(); toast(pdf?'已载入 PDF，将重建书稿后印制':'已载入 '+f.name);
       });
   };
   if(bin) r.readAsDataURL(f); else r.readAsText(f,'utf-8');

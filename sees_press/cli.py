@@ -2,6 +2,9 @@
 """命令行入口。
 
   python -m sees_press.cli build 稿件.md --title "书名" --author "作者" --style 疏朗留白
+  python -m sees_press.cli build 扫描书.pdf --formats epub,cover,preview
+  python -m sees_press.cli pdf2md 书.pdf -o 抽取稿.md       # 只重建书稿，人工校对
+  python -m sees_press.cli pdf2md 书.pdf --check             # 只体检，不落盘
   python -m sees_press.cli build https://example.com/essay --formats epub,pdf
   python -m sees_press.cli styles
   python -m sees_press.cli doctor
@@ -21,7 +24,8 @@ def _opt_from_args(a) -> BuildOptions:
     keys = ("title", "subtitle", "author", "region", "translator", "publisher",
             "editor", "edition", "isbn", "identifier", "desc", "subject",
             "language", "rights", "series", "style", "quote_style",
-            "cjk_spacing", "chapter_newpage", "cover", "cover_ratio",
+            "cjk_spacing", "chapter_newpage", "keep_pdf_headers",
+            "cover", "cover_ratio",
             "out_dir", "use_legacy_validator", "emit_body", "emit_ir")
     kw = {k: getattr(a, k) for k in keys if hasattr(a, k)}
     kw["formats"] = tuple(x.strip() for x in a.formats.split(",") if x.strip())
@@ -43,6 +47,32 @@ def cmd_build(a) -> int:
             if i.level == "error":
                 print(f"  [✗] {i.code}: {i.msg}")
     return 0 if res.ok else 1
+
+
+def cmd_pdf2md(a) -> int:
+    from .pdfextract import PDFError, diagnostics_markdown, extract_pdf
+    src = Path(a.source)
+    out = Path(a.out) if a.out else src.with_suffix(".md")
+    try:
+        ex = extract_pdf(src, assets_dir=out.parent / "pdf_assets")
+    except PDFError as e:
+        print("PDF 处理失败：" + str(e))
+        return 1
+    if a.check:
+        print(diagnostics_markdown(ex.diagnostics))
+        return 0
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(ex.markdown, encoding="utf-8")
+    d = ex.diagnostics
+    print(f"已重建书稿：{out}")
+    print(f"  {d['pages']} 页 → {d['chapters']} 章 / {d['paragraphs']} 段，"
+          f"字符保留率 {d['retention']:.0%}")
+    print(f"  剔除前置页 {d['front_pages']} 页、页眉页码 {d['dropped_headers']} 行；"
+          f"插图 {d['images']} 张、脚注 {d['footnotes']} 条")
+    for w in d["warnings"]:
+        print("  [!] " + w)
+    print("  校对后可直接投回：python -m sees_press.cli build " + str(out))
+    return 0
 
 
 def cmd_styles(_a) -> int:
@@ -80,8 +110,8 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="sees-press", description="见室印制所 · 输入内容，自动成书")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    b = sub.add_parser("build", help="把文稿做成电子书")
-    b.add_argument("source", help="正文 / .md .txt .docx .html 文件路径 / 目录 / URL")
+    b = sub.add_parser("build", help="把文稿或 PDF 做成电子书")
+    b.add_argument("source", help="正文 / .pdf .md .txt .docx .html 路径 / 目录 / URL")
     for k in ("title", "subtitle", "author", "region", "translator", "publisher",
               "editor", "edition", "isbn", "identifier", "desc", "subject", "series", "cover"):
         b.add_argument("--" + k.replace("_", "-"), default="")
@@ -92,13 +122,22 @@ def main(argv=None) -> int:
     b.add_argument("--language", default="zh-CN")
     b.add_argument("--rights", default="")
     b.add_argument("--cover-ratio", default="2:3", choices=["2:3", "3:4"])
+    b.add_argument("--keep-pdf-headers", action="store_true",
+                   help="PDF 输入时保留页眉页脚（默认剔除）")
     b.add_argument("--no-cjk-spacing", action="store_false", dest="cjk_spacing")
     b.add_argument("--no-chapter-newpage", action="store_false", dest="chapter_newpage")
     b.add_argument("--no-legacy-validator", action="store_false", dest="use_legacy_validator")
     b.add_argument("--no-body", action="store_false", dest="emit_body")
     b.add_argument("--no-ir", action="store_false", dest="emit_ir")
     b.set_defaults(func=cmd_build, cjk_spacing=True, chapter_newpage=True,
-                   use_legacy_validator=True, emit_body=True, emit_ir=True)
+                   keep_pdf_headers=False, use_legacy_validator=True,
+                   emit_body=True, emit_ir=True)
+
+    pm = sub.add_parser("pdf2md", help="把 PDF 重建为可校对的结构化书稿")
+    pm.add_argument("source", help="PDF 文件路径")
+    pm.add_argument("-o", "--out", default="", help="输出 .md 路径（默认与 PDF 同名）")
+    pm.add_argument("--check", action="store_true", help="只输出体检结果，不生成文件")
+    pm.set_defaults(func=cmd_pdf2md)
 
     sub.add_parser("styles", help="列出七种版式").set_defaults(func=cmd_styles)
     sub.add_parser("doctor", help="环境自检").set_defaults(func=cmd_doctor)

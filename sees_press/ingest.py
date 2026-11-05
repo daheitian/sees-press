@@ -112,6 +112,13 @@ def _from_docx(path: Path) -> str:
     return "\n\n".join(out)
 
 
+def _from_pdf(path: Path) -> str:
+    """PDF → 可重排的结构化 Markdown；插图落到 PDF 同目录，供 IR 解析时定位。"""
+    from .pdfextract import extract_pdf
+    ex = extract_pdf(path, assets_dir=path.parent / (path.stem + "_assets"))
+    return ex.markdown
+
+
 def _from_html(raw: str) -> str:
     p = _TextExtractor()
     p.feed(raw)
@@ -173,6 +180,8 @@ def read_source(src: str | os.PathLike, base: str | os.PathLike | None = None) -
     suffix = p.suffix.lower()
     if suffix == ".docx":
         return _from_docx(p), p.name
+    if suffix == ".pdf":
+        return _from_pdf(p), p.name
     raw = p.read_bytes()
     text = None
     for enc in ("utf-8-sig", "utf-8", "gb18030", "big5"):

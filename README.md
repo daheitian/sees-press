@@ -255,3 +255,34 @@ sees-press/
 MIT，见 [LICENSE](LICENSE)。
 
 排版规则思路参考 Standard Ebooks tools（GPL-3.0）与 `publisher-typography` 的实测经验，本仓库未包含其任何源码；`se` 工具链不需要安装。`publisher-typography` 的脚本若存在于 `~/.workbuddy/skills/publisher-typography/scripts/`，会被自动复用形成双保险，缺失时全部降级到本包内置实现。
+
+
+---
+
+## 附：PDF → EPUB（重建，不是改后缀）
+
+传入一份有文字层的 PDF，软件会把它当成**素材**而不是真相源：逐页抽取字词坐标 → 组行 →
+剔除页眉页脚页码与封面/版权页/原目录 → 双栏按栏重排 → 合并中文断行 → 识别标题、引文、
+列表、脚注与插图 → 输出干净的 Markdown 书稿，再由同一 IR 派生标准 EPUB 3。
+
+```bash
+# 只抽取并体检，不生成书
+python -m sees_press.cli pdf2md 书籍.pdf --check
+
+# 抽出可人工校对的书稿
+python -m sees_press.cli pdf2md 书籍.pdf -o source.md
+
+# 直接一步出 EPUB（可同时要 PDF / 封面 / 网页预览）
+python -m sees_press.cli build 书籍.pdf --formats epub,cover,preview --style 疏朗留白
+```
+
+构建会把 `source.md`（抽取稿）、`pdf_extract.json`（诊断：页数 / 章节 / 剔除行数 /
+字符保留率 / 警告）一并放进产物目录，便于人工校对后再投一次。扫描件（无文字层）会明确
+报错，需先 OCR；复杂表格建议用 `--check` 先看保留率。
+
+**在线版**：<https://daheitian.github.io/sees-press/pdf2epub.html> —— pdf.js 与打包器都随页面
+一起放在 `docs/`，转换全程在浏览器内存里完成，PDF 不上传。在线版是精简管线（专注文本
+结构），插图提取、PDF 大纲、脚注归位与 23 项包校验由本机软件提供。
+
+> 约定不变：绝不把软件**自己刚生成的 PDF** 再倒回 EPUB（分页产物反推会丢语义）。
+> 外部传入的 PDF 走的是「抽取 → 重建结构化书稿 → 再派生 EPUB」，PDF 只是素材入口。

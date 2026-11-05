@@ -227,9 +227,10 @@ def _opf(book: Book, files: list[tuple[str, str, str, str]]) -> str:
     if m.subtitle:
         md.append(f'<dc:title id="subtitle">{xml_escape(m.subtitle)}</dc:title>')
         md.append('<meta property="title-type" refines="#subtitle">subtitle</meta>')
-    if m.author:
-        md.append(f'<dc:creator id="creator">{xml_escape(m.author)}</dc:creator>')
-        md.append('<meta property="role" refines="#creator" scheme="marc:relators">aut</meta>')
+    # PDF 等外部来源常常没有作者元数据；OPF 里留空 creator 会触发质检阻断，
+    # 显式署「佚名」比缺元素更可读，用户可在书目信息里随时改掉。
+    md.append(f'<dc:creator id="creator">{xml_escape(m.author or "佚名")}</dc:creator>')
+    md.append('<meta property="role" refines="#creator" scheme="marc:relators">aut</meta>')
     if m.translator:
         md.append(f'<dc:contributor id="translator">{xml_escape(m.translator)}</dc:contributor>')
         md.append('<meta property="role" refines="#translator" scheme="marc:relators">trl</meta>')
