@@ -85,10 +85,12 @@ def _is_amount(v: str) -> bool:
 
 
 def _table_html(text: str) -> str:
-    """表格块：每行 `标签\t数值`，输出语义 <table>。
+    """表格块：每行 `单元格\t单元格…`，输出语义 <table>。
 
     PDF 抽出来的财务表格在文本层是碎片，以前用 <pre> 等宽假表格凑，
     在微信读书里既不能缩放也不换行；改真表格后阅读器可自行重排。
+    两列时保持原先「标签 / 数值」的兼容写法；三列及以上按带表头的
+    数据表输出，避免把多列硬塞进两列导致解包报错。
     """
     rows = []
     for line in text.split("\n"):
@@ -98,13 +100,33 @@ def _table_html(text: str) -> str:
         rows.append(cells if len(cells) >= 2 else [cells[0], ""])
     if not rows:
         return ""
-    out = ['<table class="data">\n<tbody>\n']
-    for label, value in rows:
-        if not value:
-            out.append(f'<tr><td colspan="2">{E(label)}</td></tr>\n')
-        else:
-            cls = ' class="num"' if _is_amount(value) else ""
-            out.append(f'<tr><td>{E(label)}</td><td{cls}>{E(value)}</td></tr>\n')
+    ncols = max(len(r) for r in rows)
+    if ncols <= 2:
+        out = ['<table class="data">\n<tbody>\n']
+        for label, value in rows:
+            if not value:
+                out.append(f'<tr><td colspan="2">{E(label)}</td></tr>\n')
+            else:
+                cls = ' class="num"' if _is_amount(value) else ""
+                out.append(f'<tr><td>{E(label)}</td><td{cls}>{E(value)}</td></tr>\n')
+        out.append("</tbody>\n</table>\n")
+        return "".join(out)
+
+    head = (rows[0] + [""] * ncols)[:ncols]
+    out = ['<table class="data">\n<thead>\n<tr>']
+    for c in head:
+        out.append(f'<th scope="col">{E(c)}</th>')
+    out.append('</tr>\n</thead>\n<tbody>\n')
+    for r in rows[1:]:
+        cells = (r + [""] * ncols)[:ncols]
+        if sum(bool(c) for c in cells) == 1:
+            out.append(f'<tr><td colspan="{ncols}">{E(next(c for c in cells if c))}</td></tr>\n')
+            continue
+        out.append('<tr>')
+        for j, c in enumerate(cells):
+            cls = ' class="num"' if j and _is_amount(c) else ""
+            out.append(f'<td{cls}>{E(c)}</td>')
+        out.append('</tr>\n')
     out.append("</tbody>\n</table>\n")
     return "".join(out)
 
