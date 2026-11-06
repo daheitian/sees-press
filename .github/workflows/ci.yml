@@ -20,10 +20,16 @@ jobs:
           python-version: '3.13'
 
       - name: Install optional dependency
-        run: python -m pip install --upgrade pip && pip install Pillow
+        run: python -m pip install --upgrade pip && pip install Pillow pymupdf
 
       - name: Environment report
         run: python -m sees_press.cli doctor
+
+      - name: Regression tests
+        shell: bash
+        run: |
+          python tests/test_pdfextract.py
+          python tests/test_epub.py
 
       - name: Build the demo book
         run: python -m sees_press.cli demo --out-dir ./out/ci

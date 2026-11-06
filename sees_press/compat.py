@@ -118,10 +118,16 @@ def audit_epub(path: str | Path) -> Audit:
               "；".join(bad) or "application/epub+zip（无 BOM / 换行）")
 
     container = _text(z, "META-INF/container.xml")
-    a.add("ok" if "content.opf" in container else "error", "container",
+    a.add("ok" if "content.opf" in container or "rootfile" in container else "error", "container",
           "container.xml 指向 OPF", "META-INF/container.xml")
 
-    opf_name = next((n for n in names if n.endswith("content.opf")), "")
+    # OPF 路径：优先读 container.xml（兼容单引号 / 非标准路径），
+    # 退化时再退回「包内唯一的 .opf」
+    try:
+        from .epubread import opf_path
+        opf_name = opf_path(z)
+    except Exception:
+        opf_name = next((n for n in names if n.lower().endswith(".opf")), "")
     opf = _text(z, opf_name) if opf_name else ""
     if not opf:
         a.add("error", "OPF", "找不到 content.opf")
@@ -171,41 +177,42 @@ def audit_epub(path: str | Path) -> Audit:
           else f"{len(refs)} 个阅读顺序条目")
 
     # ── 封面 ──────────────────────────────────────────────────
-    cover_m = re.search(r'<item\s[^>]*properties="cover-image"[^>]*href="([^"]+)"', opf)
-    if not cover_m:
-        cover_m = re.search(r'<item\s[^>]*href="([^"]+)"[^>]*properties="cover-image"', opf)
-    if not cover_m:
-        a.add("error", "封面", "OPF 未声明 cover-image")
+    # 四层回退找封面（见 epubread.extract_cover）：cover-image 属性 /
+    # meta name=cover（id 或文件名）/ guide 首图 / 兜底 image+cover 字样。
+    try:
+        from .epubread import extract_cover
+        cname = extract_cover(z, opf_name)
+    except Exception:
+        cname = None
+    if not cname:
+        a.add("error", "封面", "OPF 未声明可读的封面图",
+              "需 cover-image 属性 / meta name=cover / guide reference")
+    elif cname not in names:
+        a.add("error", "封面", "声明的封面文件不在包内", cname)
     else:
-        href = cover_m.group(1)
-        base = opf_name.rsplit("/", 1)[0] + "/" if "/" in opf_name else ""
-        cname = base + href
-        if cname not in names:
-            a.add("error", "封面", "声明的封面文件不在包内", cname)
-        else:
-            data = z.read(cname)
-            try:
-                from PIL import Image
-                im = Image.open(io.BytesIO(data))
-                w, h = im.size
-                px = w * h
-                short = min(w, h)
-                fmt, mode = im.format, im.mode
-                issues = []
-                if fmt != "JPEG":
-                    issues.append(f"{fmt} 格式（建议 JPEG）")
-                if mode not in ("RGB", "L"):
-                    issues.append(f"{mode} 模式（需 RGB）")
-                if px > MAX_IMAGE_PIXELS:
-                    issues.append(f"{px:,} 像素 > {MAX_IMAGE_PIXELS:,} 上限")
-                if short < COVER_MIN_SHORT:
-                    issues.append(f"短边 {short}px < {COVER_MIN_SHORT}px")
-                a.add("error" if any("像素" in x for x in issues)
-                      else ("warn" if issues else "ok"),
-                      "封面", "JPEG / RGB / ≤320 万像素 / 短边 ≥1400",
-                      "；".join(issues) or f"{fmt} {mode} {w}×{h}，{px:,} 像素")
-            except Exception as e:
-                a.add("error", "封面", "图片无法解析", type(e).__name__)
+        data = z.read(cname)
+        try:
+            from PIL import Image
+            im = Image.open(io.BytesIO(data))
+            w, h = im.size
+            px = w * h
+            short = min(w, h)
+            fmt, mode = im.format, im.mode
+            issues = []
+            if fmt != "JPEG":
+                issues.append(f"{fmt} 格式（建议 JPEG）")
+            if mode not in ("RGB", "L"):
+                issues.append(f"{mode} 模式（需 RGB）")
+            if px > MAX_IMAGE_PIXELS:
+                issues.append(f"{px:,} 像素 > {MAX_IMAGE_PIXELS:,} 上限")
+            if short < COVER_MIN_SHORT:
+                issues.append(f"短边 {short}px < {COVER_MIN_SHORT}px")
+            a.add("error" if any("像素" in x for x in issues)
+                  else ("warn" if issues else "ok"),
+                  "封面", "JPEG / RGB / ≤320 万像素 / 短边 ≥1400",
+                  "；".join(issues) or f"{fmt} {mode} {w}×{h}，{px:,} 像素")
+        except Exception as e:
+            a.add("error", "封面", "图片无法解析", type(e).__name__)
 
     # 单图像素上限（不只是封面）
     try:

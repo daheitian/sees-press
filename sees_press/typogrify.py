@@ -103,8 +103,21 @@ def _cjk_punctuation(text: str) -> str:
         h = re.escape(half)
         text = re.sub(rf"(?<=[{CJK}]){h}", full, text)
         text = re.sub(rf"{h}(?=[{CJK}])", full, text)
+    # 中文句末的半角句点 → 全角句号（排除小数点、英文缩写与省略号）。
+    # 模型译文常把中文句末打成 "."，这是 polish.py 里最该补的一处。
+    text = re.sub(rf"(?<=[{CJK}])\.(?![.\d])", "。", text)
     # 半角括号且内部含汉字 → 全角（markdown 结构已先存哨兵，不会误伤）
     text = re.sub(r"\(([^()\n]*[" + CJK + r"][^()\n]*)\)", r"（\1）", text)
+    # 已生成的全角括号里若还裹着半角括号，再修一层
+    text = re.sub(r"（\(([^()\n]*)\)）", r"（\1）", text)
+    # 直引号在中文串内成对 → 中文引号（智能引号已转则无未配对的 "，本步空转；
+    # 仅 quote_style="straight" 时这里才真正生效，对应 polish.py 的同名处理）
+    if text.count('"') and text.count('"') % 2 == 0:
+        marks = iter("“”" * (text.count('"') // 2))
+        text = re.sub('"', lambda m: next(marks), text)
+    # 中文与全角标点之间不留多余空格（polish.py 的同名处理）
+    text = re.sub(r"\s+([，。；：？！”）])", r"\1", text)
+    text = re.sub(r"([“（])\s+", r"\1", text)
     # 重复标点收敛
     text = re.sub(r"！{2,}", "！", text)
     text = re.sub(r"？{2,}", "？", text)
