@@ -64,8 +64,10 @@ def build_preview(epub: str | Path, out: str | Path, title: str = "") -> Path:
                      if x.get("idref") in manifest]
             ordered = [n for n in spine if n in names]
             if ordered:
-                front = [n for n in ordered if n in front] + [n for n in ordered if n in chapters and n not in front]
-                chapters = [n for n in ordered if n in chapters and n not in front]
+                # 只按 spine 重排 front / chapters，两者互斥，绝不能把章节并进 front
+                # （并进去会让 chapters 变空 → 目录没有条目、章首锚点丢失）
+                front = [n for n in ordered if n in front]
+                chapters = [n for n in ordered if n in chapters]
         except Exception:
             pass
 
@@ -73,7 +75,15 @@ def build_preview(epub: str | Path, out: str | Path, title: str = "") -> Path:
         for n in chapters:
             t = z.read(n).decode("utf-8", "replace")
             m = re.search(r"<h[12][^>]*>(.*?)</h[12]>", t, re.S)
-            label = re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else Path(n).stem
+            if m:
+                raw = m.group(1)
+                num = re.search(r'<span class="num">(.*?)</span>', raw, re.S)
+                num_txt = re.sub(r"<[^>]+>", "", num.group(1)).strip() if num else ""
+                title_txt = re.sub(r"<[^>]+>", "",
+                                   re.sub(r'<span class="num">.*?</span>', "", raw, flags=re.S)).strip()
+                label = f"{num_txt} · {title_txt}" if num_txt else title_txt
+            else:
+                label = Path(n).stem
             toc.append((Path(n).stem, html.escape(label)))
 
         parts = [xhtml_body(n) for n in front]
@@ -83,8 +93,10 @@ def build_preview(epub: str | Path, out: str | Path, title: str = "") -> Path:
             stem = Path(n).stem
             parts.append(f'<div class="doc" id="{stem}">{body}</div>')
 
-    toc_html = "\n".join(f'<a href="#{s}">{t}</a>' for s, t in toc)
-    cover_html = f'<img class="cover" src="{cover}" alt="封面"/>' if cover else ""
+    toc_html = "\n".join(f'<a href="#{s}" data-target="{s}">{t}</a>' for s, t in toc)
+    # 书里已经有封面页（epub:type="cover"）时不要再插一张，否则封面会连着出现两次
+    has_cover_page = any('epub:type="cover"' in p for p in parts)
+    cover_html = f'<img class="cover" src="{cover}" alt="封面"/>' if (cover and not has_cover_page) else ""
     doc = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -114,6 +126,11 @@ nav.toc a:hover {{ color:var(--accent,#1F4E3D); }}
 main {{ background:var(--card); border:1px solid var(--line); border-radius:12px;
         width:min(720px,100%); padding:64px 72px; box-shadow:0 6px 30px rgba(0,0,0,.035); }}
 main img.cover {{ display:block; width:56%; margin:0 auto 40px; box-shadow:0 8px 24px rgba(0,0,0,.13); }}
+/* 兜底：书里任何没被约束的插图都不许撑破页面（曾出现过 1600px 宽的封面把版心顶爆） */
+main img {{ max-width:100%; height:auto; }}
+html {{ scroll-behavior:smooth; }}
+main [id] {{ scroll-margin-top:76px; }}
+nav.toc a.current {{ color:var(--accent,#1F4E3D); border-bottom-color:#d8d5cd; }}
 .doc {{ padding-top:8px; }}
 .sp-mark {{ text-align:center; font-size:11px; letter-spacing:.4em; color:var(--muted);
             margin:52px 0 40px; }}
@@ -141,6 +158,22 @@ document.getElementById('btnToc').onclick=function(){{
 document.getElementById('btnMobile').onclick=function(){{
   document.body.classList.toggle('mobile'); this.classList.toggle('on',document.body.classList.contains('mobile'));
 }};
+// 目录高亮：滚到哪一章，目录里对应那条加深
+(function(){{
+  var links=[].slice.call(document.querySelectorAll('nav.toc a[data-target]'));
+  if(!links.length) return;
+  var map={{}}; links.forEach(function(a){{ map[a.getAttribute('data-target')]=a; }});
+  var targets=[].slice.call(document.querySelectorAll('main [id]')).filter(function(el){{ return map[el.id]; }});
+  if(!targets.length) return;
+  var io=new IntersectionObserver(function(entries){{
+    entries.forEach(function(en){{
+      if(!en.isIntersecting) return;
+      links.forEach(function(a){{ a.classList.remove('current'); }});
+      map[en.target.id].classList.add('current');
+    }});
+  }},{{ rootMargin:'-80px 0px -72% 0px' }});
+  targets.forEach(function(t){{ io.observe(t); }});
+}})();
 </script>
 </body></html>"""
     out.write_text(doc, encoding="utf-8")

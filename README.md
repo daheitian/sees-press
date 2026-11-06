@@ -255,6 +255,28 @@ sees-press/
 
 `.github/workflows/ci.yml` 在每次 push 时用 Python 3.13 跑通 `demo` 全流程，并校验 EPUB 的 mimetype 包首且 STORED、nav.xhtml / content.opf 存在、包内条目合法，最后把产物传成 Actions artifact。CI 上不装 TeX，PDF 支线按设计跳过。
 
+### 站点与交互的本地实测
+
+页面里的显示问题（撑破版心、目录为空、按钮折行）靠读代码很难发现，所以留了一套浏览器实测脚本，走 Chrome DevTools Protocol，用真实时钟等异步任务跑完：
+
+```bash
+# 先把 docs/ 起成本地服务
+python -m http.server 8789 --bind 127.0.0.1 --directory docs
+
+# 预览页：目录跳转、手机窄屏、图片是否撑破版心（9 项断言）
+node scripts/browser_probe.js http://127.0.0.1:8789/preview.html scripts/probe_try.js
+
+# 版式试验台：七种版式逐个切换，核对 CSS 变量与渲染结果
+node scripts/browser_probe.js http://127.0.0.1:8789/try.html scripts/probe_try.js
+
+# PDF 转换：伪造文件输入跑完整条链路，并截获 EPUB 字节查结构
+node scripts/browser_probe.js http://127.0.0.1:8789/pdf2epub.html scripts/probe_pdf2epub.js
+```
+
+两个坑值得记：无头 Chrome 有 **500px 最小视口**（`--window-size=390` 实际按 500 布局，截图右半边像是被切掉，其实是假象），而 `--virtual-time-budget` 会把定时器快进、pdf.js 的真实工作还没做完就被判超时。所以别用截图判断移动端，也别用虚拟时间判断异步链路，用 CDP 量 `document.documentElement.scrollWidth` 才准。
+
+样张拼图由 `scripts/make_docs_assets.py` 从 `docs/assets/sample.pdf` 重新渲染（3×2 满六格），换样例书后重跑一次即可。
+
 ## 十一、许可与致谢
 
 MIT，见 [LICENSE](LICENSE)。

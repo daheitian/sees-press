@@ -33,6 +33,7 @@ header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.92);posi
 .nav-links{display:flex;gap:28px;font-size:13px}
 .nav-links a{border-bottom:1px solid transparent;padding-bottom:2px;transition:border-color .2s,color .2s}
 .nav-links a:hover{border-color:var(--ink);color:#000}
+.nav-links a[aria-current]{border-color:var(--ink);color:#000}
 
 /* ---------- hero ---------- */
 .hero{display:grid;grid-template-columns:1.05fr .78fr;gap:72px;align-items:center;padding:88px 0 76px}
@@ -44,6 +45,7 @@ header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.92);posi
 .btn{
   display:inline-flex;align-items:center;gap:10px;padding:12px 22px;font-size:13.5px;
   border:1px solid var(--ink);transition:background .2s,color .2s,transform .2s;
+  white-space:nowrap;
 }
 .btn:hover{transform:translateY(-1px)}
 .btn-primary{background:var(--ink);color:var(--paper-2)}
@@ -67,8 +69,10 @@ header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.92);posi
 .pdfcta{display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap;
   margin-top:40px;padding:26px 30px;border:1px solid var(--line);background:var(--paper-2)}
 .pdfcta b{display:block;font-size:17px;font-weight:500;letter-spacing:.06em;margin-bottom:6px}
-.pdfcta span{display:block;font-size:13px;color:var(--ink-soft);line-height:1.85}
-.pdfcta a{flex:0 0 auto;border:1px solid var(--ink);padding:10px 22px;font-size:13px;transition:background .2s,color .2s}
+.pdfcta > div > span{display:block;font-size:13px;color:var(--ink-soft);line-height:1.85}
+.pdfcta a{flex:0 0 auto;white-space:nowrap;border:1px solid var(--ink);padding:10px 22px;font-size:13px;transition:background .2s,color .2s}
+.pdfcta a .arrow{display:inline-block;transition:transform .2s}
+.pdfcta a:hover .arrow{transform:translateX(3px)}
 .pdfcta a:hover{background:var(--ink);color:var(--paper-2)}
 
 /* ---------- sections ---------- */
@@ -84,6 +88,8 @@ section{padding:86px 0 0}
 
 /* styles grid */
 .styles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+/* 七种版式 + 4 列 → 末一张跨两列铺满，不留下空格 */
+.style-card:nth-child(7){grid-column:span 2}
 .style-card{background:var(--paper-2);padding:22px 20px 24px;min-height:190px;display:flex;flex-direction:column;transition:background .2s}
 .style-card:hover{background:#fff}
 .style-chip{height:26px;width:56px;border-radius:1px;margin-bottom:20px;position:relative}
@@ -142,8 +148,11 @@ footer a:hover{border-color:var(--ink)}
   .fact:nth-child(-n+3){border-bottom:1px solid var(--line-soft)}
   .styles{grid-template-columns:repeat(2,1fr)}
   .cols,.start,.quality{grid-template-columns:1fr;gap:32px}
+  /* 网格项的 min-width 默认是 auto，代码块会把整列顶宽，必须归零让内部滚动 */
+  .cols>*,.start>*,.quality>*{min-width:0}
   section{padding-top:64px}
-  .nav-links{gap:16px;font-size:12px}
+  .nav{height:auto;padding:12px 0;flex-wrap:wrap;row-gap:8px}
+  .nav-links{flex-wrap:wrap;gap:8px 18px;font-size:12px}
   .nav-links a:nth-child(2){display:none}
 }
 @media(max-width:520px){
@@ -151,6 +160,7 @@ footer a:hover{border-color:var(--ink)}
   .fact:nth-child(3){border-right:1px solid var(--line-soft)}
   .fact:nth-child(2n){border-right:0}
   .styles{grid-template-columns:1fr}
+  .style-card:nth-child(7){grid-column:auto}
   .hero h1{font-size:29px}
   .brand small{display:none}
 }
@@ -199,7 +209,7 @@ footer a:hover{border-color:var(--ink)}
     <div class="pdfcta">
       <div><b>新功能 · 传一份 PDF，还你一本能读的电子书</b>
         <span>在浏览器里剔除页眉页码、修好中文断行、认出章节与引文，重建目录后打包成标准 EPUB 3。文件不上传，不经过服务器。</span></div>
-      <a class="sans" href="pdf2epub.html">打开 PDF → EPUB <span class="arrow">→</span></a>
+      <a class="sans" href="pdf2epub.html">打开 PDF 转 EPUB <span class="arrow">→</span></a>
     </div>
 
 <div class="facts sans">
@@ -215,8 +225,8 @@ footer a:hover{border-color:var(--ink)}
     <div class="sec-head"><h2>成品长什么样</h2><span class="idx sans">01 / SAMPLE</span></div>
     <p class="sec-intro">下方是同一份书稿由 PDF 管线排出的实际页面：封面、书名页、目录、篇章首页与正文页。网页预览版可直接在浏览器里翻看，EPUB / PDF 可下载到阅读器里看。</p>
     <figure class="sample">
-      <a href="assets/pages.jpg" target="_blank" rel="noopener"><img src="assets/pages.jpg" alt="《论闲暇》PDF 内页样张拼图" width="1200" height="1170" loading="lazy"/></a>
-      <figcaption class="sans"><span>封面 · 书名页 · 目录 · 篇章首页 · 正文页</span><span>点击放大 · <a href="preview.html" style="border-bottom:1px solid var(--line)">打开交互预览 →</a></span></figcaption>
+      <a href="assets/pages.jpg" target="_blank" rel="noopener"><img src="assets/pages.jpg" alt="《论闲暇》PDF 内页样张拼图：封面、书名页、目录、篇章首页、正文页、第二章" width="1288" height="1266" loading="lazy"/></a>
+      <figcaption class="sans"><span>封面 · 书名页 · 目录 · 篇章首页 · 正文页 · 第二章</span><span>点击放大 · <a href="preview.html" style="border-bottom:1px solid var(--line)">打开交互预览 →</a></span></figcaption>
     </figure>
   </section>
 
@@ -323,8 +333,7 @@ const STYLES = [
   {name:"窄边密排",id:"dense",accent:"#1A1A1A",paper:"#F2F0E9",paper_mm:"125 × 185",leading:"1.50",desc:"窄边密排、真脚注、小开本",mood:"文库本 / 手册 / 长篇"},
   {name:"撞色色块",id:"pop",accent:"#E8622D",paper:"#FBF7F0",paper_mm:"148 × 195",leading:"1.70",desc:"不对称边距、橙 × 墨青色块篇首",mood:"年轻 / 商业 / 图文书"},
   {name:"素雅留白",id:"quiet",accent:"#6E7F6B",paper:"#F6F4EC",paper_mm:"130 × 185",leading:"1.90",desc:"极疏朗、楷体引言页、留白即设计",mood:"诗集 / 札记 / 小册"},
-  {name:"框线灰调",id:"frame",accent:"#8A8A8A",paper:"#F4F2EB",paper_mm:"130 × 184",leading:"1.65",desc:"本白气质、框线式篇名、灰细书眉",mood:"古典 / 讲义 / 注释本"},
-  {name:"参数同源",id:"shared",accent:"#C9C2B2",paper:"#FDFBF6",paper_mm:"PDF / EPUB",leading:"同一组值",desc:"PDF 用 geometry+ctex，EPUB 用映射后的重排 CSS",mood:"两种介质，一种气质"}
+  {name:"框线灰调",id:"frame",accent:"#8A8A8A",paper:"#F4F2EB",paper_mm:"130 × 184",leading:"1.65",desc:"本白气质、框线式篇名、灰细书眉",mood:"古典 / 讲义 / 注释本"}
 ];
 document.getElementById('style-grid').innerHTML = STYLES.map(s => `
   <div class="style-card">
