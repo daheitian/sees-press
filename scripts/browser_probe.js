@@ -83,13 +83,19 @@ async function main() {
     process.exit(2);
   }
 
-  const userDir = fs.mkdtempSync(path.join(os.tmpdir(), "cdp-"));
+  // Chrome 的临时 profile 必须落在 E 盘：默认 os.tmpdir() 在 C 盘，
+  // 一个几十 MB 的 profile 就能把只剩一两 G 的 C 盘压死（2026-11-06 实际发生过）。
+  const cdpBase = process.env.CDP_TMP_DIR || "E:/WorkBuddy/.cdp-tmp";
+  fs.mkdirSync(cdpBase, { recursive: true });
+  const userDir = fs.mkdtempSync(path.join(cdpBase, "cdp-"));
   const chrome = spawn(
     CHROME,
     [
       "--headless=new",
       "--disable-gpu",
       "--no-sandbox",
+      "--no-proxy-server",
+      "--proxy-bypass-list=*",
       "--no-first-run",
       "--disable-extensions",
       `--remote-debugging-port=${PORT}`,
@@ -180,11 +186,20 @@ async function main() {
     try {
       client && client.close();
     } catch (_) {}
-    chrome.kill();
-    await sleep(300);
+    // Windows 上 Chrome 是多进程，只 kill 父进程会留下僵尸子进程、拖住 node 退出。
+    // /T 杀整棵进程树，/F 强杀。
+    try {
+      spawn("taskkill", ["/F", "/T", "/PID", String(chrome.pid)], {
+        stdio: "ignore",
+      });
+    } catch (_) {
+      try { chrome.kill(); } catch (_) {}
+    }
+    await sleep(400);
     try {
       fs.rmSync(userDir, { recursive: true, force: true });
     } catch (_) {}
+    process.exit(process.exitCode || 0);
   }
 }
 

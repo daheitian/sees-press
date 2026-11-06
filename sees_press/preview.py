@@ -26,7 +26,14 @@ def _data_uri(z: zipfile.ZipFile, name: str) -> str | None:
     return f"data:{mt};base64," + base64.b64encode(z.read(name)).decode("ascii")
 
 
-def build_preview(epub: str | Path, out: str | Path, title: str = "") -> Path:
+def build_preview(epub: str | Path, out: str | Path, title: str = "",
+                  back_href: str = "", back_label: str = "返回") -> Path:
+    """把 EPUB 重组成单文件 HTML 预览。
+
+    back_href 给定时，工具栏最左侧会出现一个返回链接。站点上的 preview.html 需要它
+    （用户反馈「预览页进去出不来」），而 CLI 跑到临时目录时没有可返回的页面，
+    所以默认不输出，由调用方显式传入。
+    """
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(epub) as z:
@@ -97,6 +104,8 @@ def build_preview(epub: str | Path, out: str | Path, title: str = "") -> Path:
     # 书里已经有封面页（epub:type="cover"）时不要再插一张，否则封面会连着出现两次
     has_cover_page = any('epub:type="cover"' in p for p in parts)
     cover_html = f'<img class="cover" src="{cover}" alt="封面"/>' if (cover and not has_cover_page) else ""
+    back_html = (f'<a class="back" href="{html.escape(back_href)}">← {html.escape(back_label)}</a>'
+                 if back_href else "")
     doc = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -111,6 +120,11 @@ body {{ background:var(--bg); margin:0; padding:0 0 80px;
             padding:10px 20px; background:rgba(255,255,255,.88); backdrop-filter:blur(12px);
             border-bottom:1px solid var(--line); font-size:13px; }}
 .toolbar b {{ font-weight:600; margin-right:auto; letter-spacing:.02em; }}
+.toolbar a.back {{ display:inline-flex; align-items:center; gap:6px; flex:0 0 auto;
+                   padding:6px 12px; margin-right:2px; border:1px solid var(--line);
+                   border-radius:7px; color:#333; text-decoration:none; font-size:12px;
+                   transition:border-color .2s,color .2s; }}
+.toolbar a.back:hover {{ border-color:#aaa; color:#000; }}
 .toolbar button {{ border:1px solid var(--line); background:#fff; color:#333; border-radius:7px;
                    padding:6px 13px; cursor:pointer; font-size:12px; }}
 .toolbar button:hover {{ border-color:#aaa; }}
@@ -143,7 +157,7 @@ body.mobile img.cover {{ width:72%; }}
 @media print {{ .toolbar,nav.toc {{ display:none; }} main {{ border:0; box-shadow:none; padding:0; }} }}
 </style></head>
 <body>
-<div class="toolbar"><b>{html.escape(title or '电子书预览')}</b>
+<div class="toolbar">{back_html}<b>{html.escape(title or '电子书预览')}</b>
 <button id="btnToc">目录</button><button id="btnMobile">手机窄屏</button>
 <button onclick="window.print()">打印 / 存 PDF</button></div>
 <div class="layout">

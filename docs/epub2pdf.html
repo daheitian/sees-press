@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>EPUB → PDF · 见室印制所</title>
+<meta name="description" content="在浏览器里把 EPUB 重排成可打印的版面，按纸张尺寸分页，另存为 PDF。文件不上传。"/>
+<style>
+:root{
+  --paper:#F7F4ED; --paper-2:#FDFBF6; --ink:#30343A; --ink-soft:#5B5F63;
+  --line:#DCD7CB; --line-soft:#E8E3D8; --accent:#1F4E3D; --warn:#9A5B32;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:none;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Songti SC","Source Han Serif SC","Noto Serif CJK SC","STSong",SimSun,Georgia,serif;
+  font-size:16px;line-height:1.85;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:920px;margin:0 auto;padding:0 40px}
+.sans{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+.eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft)}
+header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.93);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:66px;gap:20px}
+.brand{display:flex;align-items:baseline;gap:12px;font-size:17px;letter-spacing:.08em}
+.brand small{font-size:10px;letter-spacing:.22em;color:var(--ink-soft)}
+.nav-links{display:flex;gap:26px;font-size:13px;flex-wrap:wrap}
+.nav-links a{border-bottom:1px solid transparent;padding-bottom:2px;transition:border-color .2s}
+.nav-links a:hover,.nav-links a.on{border-color:var(--ink)}
+.hero{padding:74px 0 42px}
+.hero h1{font-size:40px;line-height:1.42;font-weight:500;letter-spacing:.04em;margin:20px 0 16px}
+.hero h1 em{font-style:normal;border-bottom:1px solid var(--ink);padding-bottom:3px}
+.lede{font-size:15.5px;line-height:2;color:var(--ink-soft);max-width:36em;margin:0}
+.lede strong{color:var(--ink);font-weight:500}
+.privacy{display:inline-flex;align-items:center;gap:9px;margin-top:24px;padding:8px 14px;
+  border:1px solid var(--line);background:var(--paper-2);font-size:12px;color:var(--ink-soft);letter-spacing:.03em}
+.privacy i{display:block;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+.card{background:var(--paper-2);border:1px solid var(--line);padding:30px 32px;margin-bottom:22px}
+.card h2{font-size:18px;font-weight:500;letter-spacing:.06em;margin:0 0 4px}
+.card .sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 22px;line-height:1.8}
+
+.drop{border:1px dashed var(--line);background:var(--paper);padding:44px 24px;text-align:center;
+  cursor:pointer;transition:border-color .2s,background .2s}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(31,78,61,.035)}
+.drop .big{font-size:17px;margin-bottom:8px}
+.drop .small{font-size:12.5px;color:var(--ink-soft);line-height:1.9}
+.drop .pick{display:inline-block;margin-top:18px;border:1px solid var(--ink);padding:9px 20px;font-size:13px}
+.filebar{display:none;align-items:center;gap:14px;margin-top:16px;padding:12px 16px;
+  border:1px solid var(--line);background:var(--paper);font-size:13px}
+.filebar.show{display:flex}
+.filebar .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filebar .sz{color:var(--ink-soft);font-size:11.5px}
+.filebar a{cursor:pointer;border-bottom:1px solid var(--line);font-size:12px}
+
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+label{display:block}
+label .lb{display:block;font-size:11.5px;letter-spacing:.1em;color:var(--ink-soft);margin-bottom:7px}
+input[type=text],select{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);
+  color:var(--ink);font:inherit;font-size:13.5px;outline:none;border-radius:0}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+.opts{display:flex;gap:22px;flex-wrap:wrap;margin-top:20px;font-size:13px;color:var(--ink-soft)}
+.opts label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.opts input{accent-color:var(--accent)}
+.run{margin-top:26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;font-size:13.5px;
+  border:1px solid var(--ink);background:var(--ink);color:var(--paper-2);cursor:pointer;transition:background .2s,transform .2s}
+.btn:hover{background:#000;color:#fff;transform:translateY(-1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-ghost:hover{background:rgba(48,52,58,.06);color:var(--ink)}
+.status{font-size:12.5px;color:var(--ink-soft);min-height:1.6em}
+.status.err{color:var(--warn)}
+.progress{height:2px;background:var(--line-soft);margin-top:18px;display:none}
+.progress.show{display:block}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+
+#result{display:none}
+#result.show{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.metric{background:var(--paper-2);padding:18px 20px}
+.metric b{display:block;font-size:22px;font-weight:500;line-height:1.3}
+.metric span{display:block;font-size:11px;color:var(--ink-soft);letter-spacing:.06em;margin-top:4px}
+.warns{margin:18px 0 0;padding:0;list-style:none;font-size:13px;color:var(--ink-soft)}
+.warns li{padding:7px 0 7px 18px;border-bottom:1px solid var(--line-soft);position:relative}
+.warns li::before{content:"—";position:absolute;left:0;color:var(--warn)}
+.warns li:last-child{border-bottom:0}
+.dl{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.note{font-size:12.5px;color:var(--ink-soft);line-height:1.95;margin-top:18px}
+.note b{color:var(--ink);font-weight:500}
+.faq{margin-bottom:90px}
+.faq .card{margin-bottom:14px}
+.faq h3{font-size:15px;font-weight:500;margin:0 0 8px}
+.faq p{font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0}
+footer{margin-top:20px;border-top:1px solid var(--line);padding:30px 0 54px;display:flex;
+  justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft)}
+footer a{border-bottom:1px solid var(--line);padding-bottom:1px}
+
+/* ── 纸张预览 ────────────────────────────────────────── */
+.stage{background:#e9e5dc;border:1px solid var(--line);padding:26px 20px;overflow:auto;
+  display:none;justify-content:center}
+.stage.show{display:flex}
+.sheet{background:#fff;box-shadow:0 10px 34px rgba(0,0,0,.14);
+  width:calc(var(--pw) * 1mm);min-height:calc(var(--ph) * 1mm);
+  padding:calc(var(--mg) * 1mm);color:#222;
+  font-size:calc(var(--fs) * 1pt);line-height:1.85;text-align:justify}
+.sheet .book{max-width:none}
+.sheet .book h1,.sheet .book h2,.sheet .book h3{line-height:1.45;text-align:left}
+.sheet .book h1{font-size:1.5em;margin:0 0 .8em}
+.sheet .book h2{font-size:1.28em;margin:1.1em 0 .6em}
+.sheet .book h3{font-size:1.12em;margin:1em 0 .5em}
+.sheet .book p{margin:0 0 .62em;text-indent:2em}
+.sheet .book p:first-of-type{text-indent:0}
+.sheet .book blockquote{margin:.8em 0;padding-left:1em;border-left:2px solid #d8d5cd;color:#444}
+.sheet .book img{max-width:100%;height:auto;display:block;margin:.8em auto}
+.sheet .book table{border-collapse:collapse;width:100%;font-size:.86em;margin:.8em 0}
+.sheet .book td,.sheet .book th{border:1px solid #d8d5cd;padding:.3em .5em}
+.sheet .book ul,.sheet .book ol{padding-left:1.5em;margin:.6em 0}
+.sheet .book hr{border:0;border-top:1px solid #d8d5cd;margin:1.2em 0}
+.sheet .doc{padding-top:0}
+.sheet .doc + .doc{margin-top:1.6em}
+.tocpage h1{font-size:1.3em;margin:0 0 1em;text-align:left}
+.tocpage ol{list-style:none;padding:0;margin:0;font-size:.95em}
+.tocpage li{padding:.24em 0;border-bottom:1px dotted #ddd}
+/* 封面单独成页：图片约束在纸张可用高度内，不许溢出到第二页 */
+.sheet .coverpage{text-align:center;padding-top:0}
+.sheet .coverpage img{max-width:82%;max-height:calc((var(--ph) - 2 * var(--mg)) * 1mm);
+  width:auto;margin:0 auto;box-shadow:none}
+.sheet .coverpage p,.sheet .coverpage div{text-indent:0}
+
+/* ── 打印：只留纸面 ─────────────────────────────────── */
+@media print{
+  body{background:#fff}
+  .wrap,header,footer,.hero,.card,#drop-card,.faq{display:none !important}
+  .stage{display:block !important;background:#fff;border:0;padding:0;overflow:visible}
+  .sheet{box-shadow:none;width:auto;min-height:0;padding:0;margin:0;font-size:calc(var(--fs) * 1pt)}
+  .sheet .doc{break-before:page;page-break-before:always}
+  .sheet .doc:first-child{break-before:auto;page-break-before:auto}
+  .sheet .tocpage{break-after:page;page-break-after:always}
+  .sheet .coverpage{break-after:page;page-break-after:always;text-align:center}
+  .sheet img{break-inside:avoid;page-break-inside:avoid}
+  .sheet p,.sheet blockquote,.sheet li{orphans:2;widows:2}
+}
+@media(max-width:720px){
+  .wrap{padding:0 22px}.hero{padding:48px 0 32px}.hero h1{font-size:30px}
+  .card{padding:24px 20px}.fields{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}.nav-links{gap:14px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+  <a class="brand" href="index.html">见室印制所 <small class="sans">SEES PRESS</small></a>
+  <nav class="nav-links sans">
+    <a href="index.html">首页</a>
+    <a href="preview.html">在线翻看</a>
+    <a href="try.html">版式试验台</a>
+    <a href="pdf2epub.html">PDF → EPUB</a>
+    <a href="epub2pdf.html" class="on">EPUB → PDF</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <section class="hero">
+    <p class="eyebrow">EPUB → PDF</p>
+    <h1>把 EPUB 重排成<em>可以打印的版面</em></h1>
+    <p class="lede">EPUB 是流式排版，本身没有固定页面。这里按你选定的纸张与字号重新排版、分页，
+      再交给系统打印成 PDF。<strong>文件不上传</strong>，解析与排版都在本机浏览器里完成。</p>
+    <div class="privacy"><i></i><span class="sans">纯本地处理 · 无服务器 · 不上传任何文件</span></div>
+  </section>
+
+  <section class="card" id="drop-card">
+    <h2>1 · 选一本 EPUB</h2>
+    <p class="sub">支持 EPUB 2 / EPUB 3。会按 OPF 的 spine 顺序重排，保留章节、插图与表格。</p>
+
+    <div class="drop" id="drop">
+      <div class="big">把 .epub 拖到这里</div>
+      <div class="small">或者点击选择文件<br/>解析后先看纸张预览，确认没问题再导出</div>
+      <div class="pick sans">选择 EPUB 文件</div>
+    </div>
+    <input type="file" id="file" accept=".epub,application/epub+zip" style="display:none"/>
+
+    <div class="filebar" id="filebar">
+      <span class="nm" id="fname">—</span>
+      <span class="sz" id="fsize"></span>
+      <a id="clear" class="sans">移除</a>
+    </div>
+
+    <div class="fields">
+      <label><span class="lb sans">纸张</span>
+        <select id="page">
+          <option value="148,210">A5 · 148 × 210 mm</option>
+          <option value="140,203">大 32 开 · 140 × 203 mm</option>
+          <option value="107,142">6 英寸 · 107 × 142 mm</option>
+          <option value="210,297">A4 · 210 × 297 mm</option>
+        </select>
+      </label>
+      <label><span class="lb sans">正文字号</span>
+        <select id="fs">
+          <option value="10.5">10.5 pt（密）</option>
+          <option value="11.5" selected>11.5 pt（常规）</option>
+          <option value="12.5">12.5 pt（疏朗）</option>
+        </select>
+      </label>
+      <label><span class="lb sans">页边距</span>
+        <select id="mg">
+          <option value="12">12 mm</option>
+          <option value="16" selected>16 mm</option>
+          <option value="22">22 mm</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="opts sans">
+      <label><input type="checkbox" id="optToc" checked/> 生成目录页</label>
+      <label><input type="checkbox" id="optBreak" checked/> 每章另起一页</label>
+      <label><input type="checkbox" id="optImg" checked/> 保留插图</label>
+      <label><input type="checkbox" id="optIndent" checked/> 段首缩进两字</label>
+    </div>
+
+    <div class="run">
+      <button class="btn" id="go" disabled>重排并预览</button>
+      <span class="status sans" id="status">先选一个 EPUB 文件</span>
+    </div>
+    <div class="progress" id="prog"><i id="progbar"></i></div>
+  </section>
+
+  <section class="card" id="result">
+    <h2>2 · 纸张预览与导出</h2>
+    <p class="sub">下面是按所选参数排出的纸面效果。确认无误后点「导出 PDF」，在打印对话框里选
+      <b>目标 = 另存为 PDF</b>。</p>
+    <div class="metrics">
+      <div class="metric"><b id="mCh">—</b><span>章 / 篇</span></div>
+      <div class="metric"><b id="mChars">—</b><span>正文字数</span></div>
+      <div class="metric"><b id="mImg">—</b><span>插图</span></div>
+      <div class="metric"><b id="mPages">—</b><span>预计页数</span></div>
+    </div>
+    <ul class="warns" id="warns"></ul>
+    <div class="dl">
+      <button class="btn" id="dlPdf">导出 PDF</button>
+      <button class="btn btn-ghost" id="openReader">打开阅读视图</button>
+    </div>
+    <p class="note sans">打印对话框里若勾选「页眉和页脚」会带上页码与标题；不想要就在那里取消。
+      版面是按连续的流重排的，跨页处与原书不会逐页对应——这是重排的代价，也是它清晰的原因。</p>
+  </section>
+
+  <div class="card faq">
+    <h3>为什么是在浏览器里打印，而不是直接下载一个 PDF？</h3>
+    <p>浏览器里没有 LaTeX 这类排版引擎，能做的是「用 CSS 分页规则重排 + 交给系统打印」。好处是零依赖、不上传、
+      任何机器都能用；代价是数学公式、复杂表格和脚注悬挂达不到 TeX 成品的精度。要出版级精度，
+      请在本机的 SEES PRESS 里用 XeLaTeX 那条支线出 PDF。</p>
+    <h3>页码为什么不在正文里？</h3>
+    <p>CSS 的页边页码在 Chrome 里不支持。请用打印对话框自带的页眉页脚，或在系统打印设置里开页码。</p>
+    <h3>原书的字体和版式会保留吗？</h3>
+    <p>不会，这里是有意重排：统一字体、行距、段首缩进，让不同来源的 EPUB 印出来气质一致。
+      原书封面与插图会保留。</p>
+  </div>
+</div>
+
+<div class="stage" id="stage"><div class="sheet" id="sheet"><div class="book" id="book"></div></div></div>
+
+<footer class="wrap">
+  <span>见室印制所 · SEES PRESS</span>
+  <span class="sans"><a href="pdf2epub.html">反向：PDF → EPUB</a> · <a href="index.html">返回首页</a></span>
+</footer>
+
+<script src="vendor/jszip.min.js"></script>
+<script>
+(function(){
+  var el = function(id){ return document.getElementById(id); };
+  var state = { file:null, docs:[], blobs:[], bookTitle:'', chars:0, imgs:0 };
+
+  var PAGE_SIZES = {};
+  el('page').querySelectorAll('option').forEach(function(o){
+    var v = o.value.split(','); PAGE_SIZES[o.value] = {w:+v[0], h:+v[1]};
+  });
+
+  function fmtSize(n){
+    if(n < 1024) return n + ' B';
+    if(n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/1024/1024).toFixed(2) + ' MB';
+  }
+  function status(msg, err){
+    var s = el('status'); s.textContent = msg;
+    s.className = 'status sans' + (err ? ' err' : '');
+  }
+  function prog(p){
+    el('prog').classList.toggle('show', p > 0 && p < 1);
+    el('progbar').style.width = Math.round(p*100) + '%';
+  }
+
+  // ── 路径解析：相对 OPF / 章节文件 ──────────────────────
+  function dirOf(p){ var i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i+1); }
+  function resolve(base, rel){
+    if(/^(data:|https?:|mailto:|#)/i.test(rel)) return null;
+    rel = rel.replace(/^\.\//, '');
+    var parts = (base + rel).split('/'), out = [];
+    for(var i=0;i<parts.length;i++){
+      var s = parts[i];
+      if(s === '' || s === '.') continue;
+      if(s === '..') out.pop(); else out.push(s);
+    }
+    return out.join('/');
+  }
+  function mimeOf(name){
+    var e = name.split('.').pop().toLowerCase();
+    return ({jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+             svg:'image/svg+xml', webp:'image/webp', bmp:'image/bmp'})[e] || 'application/octet-stream';
+  }
+
+  // ── 主流程 ─────────────────────────────────────────────
+  async function readEpub(file){
+    status('正在解包…'); prog(0.08);
+    var zip = await JSZip.loadAsync(file);
+    var names = Object.keys(zip.files).filter(function(n){ return !zip.files[n].dir; });
+
+    // container.xml 用正则读：单引号写法会让 XML 解析器直接抛错
+    var opfPath = '';
+    var cont = zip.file('META-INF/container.xml');
+    if(cont){
+      var cx = await cont.async('string');
+      var m = cx.match(/full-path\s*=\s*["']([^"']+)["']/i);
+      if(m) opfPath = m[1];
+    }
+    if(!opfPath){
+      var cand = names.filter(function(n){ return /\.opf$/i.test(n); })[0];
+      if(!cand) throw new Error('包里找不到 .opf，这可能不是 EPUB 文件');
+      opfPath = cand;
+    }
+    var opfDir = dirOf(opfPath);
+    var opfText = await zip.file(opfPath).async('string');
+    var opf = new DOMParser().parseFromString(opfText, 'application/xml');
+    if(opf.getElementsByTagName('parsererror').length)
+      throw new Error('OPF 解析失败，文件可能损坏');
+
+    // 元数据
+    function meta(tag){
+      var ns = opf.getElementsByTagNameNS('http://purl.org/dc/elements/1.1/', tag);
+      if(ns.length) return (ns[0].textContent || '').trim();
+      var any = opf.getElementsByTagName(tag);
+      return any.length ? (any[0].textContent || '').trim() : '';
+    }
+    state.bookTitle = meta('title') || (file.name || '').replace(/\.epub$/i, '');
+    var author = meta('creator');
+
+    // manifest / spine
+    var items = {}, i, node;
+    var mi = opf.getElementsByTagNameNS('*', 'item');
+    for(i=0;i<mi.length;i++){
+      node = mi[i];
+      items[node.getAttribute('id')] = {
+        href: node.getAttribute('href'),
+        type: node.getAttribute('media-type') || '',
+        props: node.getAttribute('properties') || ''
+      };
+    }
+    var spine = [];
+    var si = opf.getElementsByTagNameNS('*', 'itemref');
+    for(i=0;i<si.length;i++){
+      var id = si[i].getAttribute('idref');
+      if(items[id]) spine.push(items[id]);
+    }
+    if(!spine.length) throw new Error('spine 为空，无法确定阅读顺序');
+
+    // 逐章提取
+    var docs = [], totalChars = 0, totalImgs = 0, warns = [];
+    var htmlDocs = spine.filter(function(it){
+      return /x?html|xml/.test(it.type) || /\.x?html?$/i.test(it.href || '');
+    });
+
+    for(i=0;i<htmlDocs.length;i++){
+      var it = htmlDocs[i];
+      var path = resolve(opfDir, it.href);
+      var f = path && zip.file(path);
+      if(!f){ warns.push('缺少文件：' + (it.href || '?')); continue; }
+      var txt = await f.async('string');
+      var dom = new DOMParser().parseFromString(txt, 'text/html');
+      if(!dom.body) continue;
+
+      // 去掉脚本、外部样式、内置目录页
+      var junk = dom.body.querySelectorAll('script,style,link');
+      for(var k=0;k<junk.length;k++) junk[k].remove();
+      var all = dom.body.querySelectorAll('*');
+      for(k=0;k<all.length;k++){
+        var t = all[k].getAttribute && (all[k].getAttribute('epub:type') || '');
+        if(/toc|landmarks|page-list/.test(t) && /nav|div/i.test(all[k].tagName)) all[k].remove();
+      }
+      if(!el('optImg').checked){
+        var im = dom.body.querySelectorAll('img,image');
+        for(k=0;k<im.length;k++) im[k].remove();
+      }else{
+        // 图片 → blob URL（blob 比 data URI 省内存，读完要 revoke）
+        var imgs = dom.body.querySelectorAll('img,image');
+        for(k=0;k<imgs.length;k++){
+          var src = imgs[k].getAttribute('src') || imgs[k].getAttribute('xlink:href') || imgs[k].getAttribute('href');
+          if(!src) continue;
+          var ip = resolve(dirOf(path), src);
+          var ifile = ip && zip.file(ip);
+          if(!ifile){ imgs[k].remove(); warns.push('插图缺失：' + src); continue; }
+          var blob = await ifile.async('blob');
+          var url = URL.createObjectURL(new Blob([blob], {type: mimeOf(ip)}));
+          state.blobs.push(url);
+          if(imgs[k].tagName.toLowerCase() === 'img') imgs[k].setAttribute('src', url);
+          else{ imgs[k].setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);
+                imgs[k].removeAttribute('href'); }
+          totalImgs++;
+        }
+      }
+
+      var bodyHtml = dom.body.innerHTML.trim();
+      if(!bodyHtml) continue;
+      var plain = (dom.body.textContent || '').replace(/\s+/g, '');
+      if(plain.length < 12 && dom.body.querySelectorAll('img').length === 0) continue;  // 空白页
+      totalChars += plain.length;
+
+      // 封面 / 书名页：留在书里，但不算正文、不进目录
+      var isCover = /(?:^|\/)(cover|titlepage|title-page|halftitle)[^\/]*$/i.test(path || '') ||
+                    !!dom.body.querySelector('[epub\\:type="cover"]') ||
+                    /^(cover|titlepage)$/i.test((dom.body.className || ''));
+
+      // 章节标题取第一个标题元素
+      var h = dom.body.querySelector('h1,h2,h3');
+      var label = h ? (h.textContent || '').trim().replace(/\s+/g, ' ') : '';
+      if(!label){
+        // 没有标题就取第一段有意义的文字，比「第 N 节」可读
+        var p0 = dom.body.querySelector('p,div');
+        label = p0 ? (p0.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24) : '';
+      }
+      docs.push({
+        html: bodyHtml,
+        label: isCover ? '封面' : (label || ('第 ' + (docs.length+1) + ' 节')),
+        kind: isCover ? 'cover' : 'body'
+      });
+      state.pages_seen = docs.length;
+      prog(0.1 + 0.7 * (i+1) / htmlDocs.length);
+    }
+
+    if(!docs.length) throw new Error('没有提取到任何正文，这本 EPUB 可能只有图片或结构异常');
+    var bodyCount = docs.filter(function(d){ return d.kind !== 'cover'; }).length;
+    return {docs: docs, chars: totalChars, imgs: totalImgs, warns: warns,
+            bodyCount: bodyCount, title: state.bookTitle, author: author};
+  }
+
+  function compose(r){
+    var parts = [];
+    var ps = el('page').value.split(',');
+    var pw = +ps[0], ph = +ps[1], mg = +el('mg').value;
+
+    // 印刷顺序：封面 → 目录 → 正文（目录放最前面会让人觉得书从目录开始）
+    var covers = r.docs.filter(function(d){ return d.kind === 'cover'; });
+    var bodies = r.docs.filter(function(d){ return d.kind !== 'cover'; });
+    covers.forEach(function(d){
+      parts.push('<div class="doc coverpage">' + d.html + '</div>');
+    });
+    if(el('optToc').checked){
+      var lis = bodies.map(function(d){ return '<li>' + esc(d.label) + '</li>'; }).join('');
+      parts.push('<div class="doc tocpage"><h1>目 录</h1><ol>' + lis + '</ol></div>');
+    }
+    bodies.forEach(function(d){
+      parts.push('<div class="doc">' + d.html + '</div>');
+    });
+
+    var book = el('book');
+    book.innerHTML = parts.join('');
+    if(!el('optIndent').checked){
+      var ps2 = book.querySelectorAll('p');
+      for(var k=0;k<ps2.length;k++) ps2[k].style.textIndent = '0';
+    }
+
+    // 纸张几何
+    var st = document.documentElement.style;
+    st.setProperty('--pw', pw); st.setProperty('--ph', ph);
+    st.setProperty('--mg', mg); st.setProperty('--fs', el('fs').value);
+
+    // @page 不能用 CSS 变量，单独注入
+    var cssId = 'pagecss', node = document.getElementById(cssId);
+    if(!node){ node = document.createElement('style'); node.id = cssId; document.head.appendChild(node); }
+    node.textContent = '@page{size:' + pw + 'mm ' + ph + 'mm;margin:' + mg + 'mm}';
+    // 章节另起页开关
+    var brk = document.getElementById('breakcss');
+    if(!brk){ brk = document.createElement('style'); brk.id = 'breakcss'; document.head.appendChild(brk); }
+    brk.textContent = el('optBreak').checked ? '' : '.sheet .doc{break-before:auto;page-break-before:auto}';
+
+    el('stage').classList.add('show');
+    return {pw: pw, ph: ph, mg: mg};
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];
+    });
+  }
+
+  function estimate(pw, ph, mg){
+    // 每页可用高度（mm→px，96dpi：1mm = 96/25.4 px）
+    var usable = (ph - 2*mg) * 96 / 25.4;
+    var docs = el('book').querySelectorAll('.doc');
+    var pages = 0;
+    for(var i=0;i<docs.length;i++){
+      var h = docs[i].getBoundingClientRect().height;
+      pages += Math.max(1, Math.ceil(h / usable));
+    }
+    return pages;
+  }
+
+  async function run(){
+    var f = state.file;
+    if(!f) return;
+    el('go').disabled = true;
+    el('result').classList.remove('show');
+    try{
+      var r = await readEpub(f);
+      status('正在排版…'); prog(0.86);
+      await new Promise(function(res){ setTimeout(res, 30); });
+      var geo = compose(r);
+      await new Promise(function(res){ setTimeout(res, 60); });
+      var pages = estimate(geo.pw, geo.ph, geo.mg);
+
+      el('mCh').textContent = r.bodyCount;
+      el('mChars').textContent = r.chars >= 10000
+        ? (r.chars/10000).toFixed(1) + ' 万' : r.chars.toLocaleString();
+      el('mImg').textContent = r.imgs;
+      el('mPages').textContent = pages;
+
+      var wl = el('warns');
+      wl.innerHTML = '';
+      var msgs = r.warns.slice(0, 6);
+      if(!el('optToc').checked) msgs.push('未生成目录页');
+      msgs.forEach(function(m){
+        var li = document.createElement('li'); li.textContent = m; wl.appendChild(li);
+      });
+
+      el('result').classList.add('show');
+      prog(1);
+      status('排版完成：' + r.bodyCount + ' 章 · 约 ' + pages + ' 页，可导出');
+      el('result').scrollIntoView({behavior:'smooth', block:'start'});
+      state.result = r;   // 供改参数后重排用
+    }catch(e){
+      prog(0);
+      status('出错了：' + (e.message || e), true);
+      console.error(e);
+    }finally{
+      el('go').disabled = false;
+    }
+  }
+
+  // ── 交互 ───────────────────────────────────────────────
+  function pick(f){
+    if(!f) return;
+    if(!/\.epub$/i.test(f.name)){ status('请选 .epub 文件（这个是 ' + f.name + '）', true); return; }
+    state.file = f;
+    el('fname').textContent = f.name;
+    el('fsize').textContent = fmtSize(f.size);
+    el('filebar').classList.add('show');
+    el('go').disabled = false;
+    status('已就绪，点「重排并预览」');
+  }
+
+  el('drop').onclick = function(){ el('file').click(); };
+  el('file').onchange = function(){ pick(this.files[0]); };
+  el('clear').onclick = function(e){
+    e.stopPropagation();
+    state.file = null; el('file').value = '';
+    state.result = null;
+    el('filebar').classList.remove('show');
+    el('go').disabled = true; el('result').classList.remove('show');
+    el('stage').classList.remove('show');
+    status('先选一个 EPUB 文件');
+  };
+  ['dragenter','dragover'].forEach(function(ev){
+    el('drop').addEventListener(ev, function(e){ e.preventDefault(); this.classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    el('drop').addEventListener(ev, function(e){ e.preventDefault(); this.classList.remove('over'); });
+  });
+  el('drop').addEventListener('drop', function(e){
+    if(e.dataTransfer && e.dataTransfer.files.length) pick(e.dataTransfer.files[0]);
+  });
+  el('go').onclick = run;
+  el('dlPdf').onclick = function(){ window.print(); };
+  el('openReader').onclick = function(){
+    // 阅读视图：把纸面撑到整屏宽，方便先读一遍再打印
+    var st = el('stage');
+    var wide = st.style.maxWidth !== 'none';
+    st.style.maxWidth = wide ? 'none' : '';
+    st.style.background = wide ? '#fff' : '';
+    document.documentElement.style.setProperty('--pw', wide ? 210 : el('page').value.split(',')[0]);
+  };
+  ['page','fs','mg','optToc','optBreak','optIndent'].forEach(function(id){
+    el(id).onchange = function(){ repaginate(); };
+  });
+  // 改纸张 / 字号 / 选项后重新排版并重算页数。
+  // 注意必须用缓存下来的解析结果重排，不能拿空 docs 去 compose——那会把已排好的正文清空。
+  function repaginate(){
+    if(!state.result) return;
+    var geo = compose(state.result);
+    el('mPages').textContent = estimate(geo.pw, geo.ph, geo.mg);
+    status('已按新参数重排：约 ' + el('mPages').textContent + ' 页');
+  }
+})();
+</script>
+</body>
+</html>

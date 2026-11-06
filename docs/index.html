@@ -74,6 +74,9 @@ header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.92);posi
 .pdfcta a .arrow{display:inline-block;transition:transform .2s}
 .pdfcta a:hover .arrow{transform:translateX(3px)}
 .pdfcta a:hover{background:var(--ink);color:var(--paper-2)}
+.pdfcta .linkrow{display:flex;gap:10px;flex-wrap:wrap;flex:0 0 auto}
+.pdfcta a.ghost{border-color:var(--line);color:var(--ink-soft)}
+.pdfcta a.ghost:hover{border-color:var(--ink);color:var(--paper-2)}
 
 /* ---------- sections ---------- */
 section{padding:86px 0 0}
@@ -175,6 +178,7 @@ footer a:hover{border-color:var(--ink)}
       <a href="preview.html">在线翻看</a>
       <a href="try.html">版式试验台</a>
       <a href="pdf2epub.html">PDF → EPUB</a>
+      <a href="epub2pdf.html">EPUB → PDF</a>
       <a href="https://github.com/daheitian/sees-press">GitHub 源码</a>
     </nav>
   </div>
@@ -207,9 +211,13 @@ footer a:hover{border-color:var(--ink)}
 
   
     <div class="pdfcta">
-      <div><b>新功能 · 传一份 PDF，还你一本能读的电子书</b>
-        <span>在浏览器里剔除页眉页码、修好中文断行、认出章节与引文，重建目录后打包成标准 EPUB 3。文件不上传，不经过服务器。</span></div>
-      <a class="sans" href="pdf2epub.html">打开 PDF 转 EPUB <span class="arrow">→</span></a>
+      <div><b>新功能 · PDF 与 EPUB 双向转换</b>
+        <span>传一份 PDF：剔除页眉页码、修好中文断行、认出章节与引文，重建目录后打包成标准 EPUB 3。
+          反过来也行——把 EPUB 按纸张重排，导出可直接打印的 PDF。全程在浏览器里，文件不上传。</span></div>
+      <div class="linkrow">
+        <a class="sans" href="pdf2epub.html">PDF → EPUB <span class="arrow">→</span></a>
+        <a class="sans ghost" href="epub2pdf.html">EPUB → PDF</a>
+      </div>
     </div>
 
 <div class="facts sans">

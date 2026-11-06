@@ -112,6 +112,11 @@ body { background:var(--bg); margin:0; padding:0 0 80px;
             padding:10px 20px; background:rgba(255,255,255,.88); backdrop-filter:blur(12px);
             border-bottom:1px solid var(--line); font-size:13px; }
 .toolbar b { font-weight:600; margin-right:auto; letter-spacing:.02em; }
+.toolbar a.back { display:inline-flex; align-items:center; gap:6px; flex:0 0 auto;
+                   padding:6px 12px; margin-right:2px; border:1px solid var(--line);
+                   border-radius:7px; color:#333; text-decoration:none; font-size:12px;
+                   transition:border-color .2s,color .2s; }
+.toolbar a.back:hover { border-color:#aaa; color:#000; }
 .toolbar button { border:1px solid var(--line); background:#fff; color:#333; border-radius:7px;
                    padding:6px 13px; cursor:pointer; font-size:12px; }
 .toolbar button:hover { border-color:#aaa; }
@@ -144,7 +149,7 @@ body.mobile img.cover { width:72%; }
 @media print { .toolbar,nav.toc { display:none; } main { border:0; box-shadow:none; padding:0; } }
 </style></head>
 <body>
-<div class="toolbar"><b>《论闲暇》· 阅读预览</b>
+<div class="toolbar"><a class="back" href="index.html">← 返回</a><b>《论闲暇》· 阅读预览</b>
 <button id="btnToc">目录</button><button id="btnMobile">手机窄屏</button>
 <button onclick="window.print()">打印 / 存 PDF</button></div>
 <div class="layout">
