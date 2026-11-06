@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Markdown → EPUB · 见室印制所</title>
+<meta name="description" content="在浏览器里把 Markdown 稿件直接排成 EPUB 3 电子书：自动识别书名与作者、按标题切分章节、生成目录与元数据。文件不上传。"/>
+<style>
+:root{
+  --paper:#F7F4ED; --paper-2:#FDFBF6; --ink:#30343A; --ink-soft:#5B5F63;
+  --line:#DCD7CB; --line-soft:#E8E3D8; --accent:#1F4E3D; --warn:#9A5B32;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:none;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Songti SC","Source Han Serif SC","Noto Serif CJK SC","STSong",SimSun,Georgia,serif;
+  font-size:16px;line-height:1.85;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:920px;margin:0 auto;padding:0 40px}
+.sans{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+.eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft)}
+header{border-bottom:1px solid var(--line);background:rgba(247,244,237,.93);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:66px;gap:20px}
+.brand{display:flex;align-items:baseline;gap:12px;font-size:17px;letter-spacing:.08em}
+.brand small{font-size:10px;letter-spacing:.22em;color:var(--ink-soft)}
+.nav-links{display:flex;gap:26px;font-size:13px;flex-wrap:wrap}
+.nav-links a{border-bottom:1px solid transparent;padding-bottom:2px;transition:border-color .2s}
+.nav-links a:hover,.nav-links a.on{border-color:var(--ink)}
+.hero{padding:74px 0 42px}
+.hero h1{font-size:40px;line-height:1.42;font-weight:500;letter-spacing:.04em;margin:20px 0 16px}
+.hero h1 em{font-style:normal;border-bottom:1px solid var(--ink);padding-bottom:3px}
+.lede{font-size:15.5px;line-height:2;color:var(--ink-soft);max-width:36em;margin:0}
+.lede strong{color:var(--ink);font-weight:500}
+.privacy{display:inline-flex;align-items:center;gap:9px;margin-top:24px;padding:8px 14px;
+  border:1px solid var(--line);background:var(--paper-2);font-size:12px;color:var(--ink-soft);letter-spacing:.03em}
+.privacy i{display:block;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+.card{background:var(--paper-2);border:1px solid var(--line);padding:30px 32px;margin-bottom:22px}
+.card h2{font-size:18px;font-weight:500;letter-spacing:.06em;margin:0 0 4px}
+.card .sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 22px;line-height:1.8}
+
+.drop{border:1px dashed var(--line);background:var(--paper);padding:44px 24px;text-align:center;
+  cursor:pointer;transition:border-color .2s,background .2s}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(31,78,61,.035)}
+.drop .big{font-size:17px;margin-bottom:8px}
+.drop .small{font-size:12.5px;color:var(--ink-soft);line-height:1.9}
+.drop .pick{display:inline-block;margin-top:18px;border:1px solid var(--ink);padding:9px 20px;font-size:13px}
+.filebar{display:none;align-items:center;gap:14px;margin-top:16px;padding:12px 16px;
+  border:1px solid var(--line);background:var(--paper);font-size:13px}
+.filebar.show{display:flex}
+.filebar .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filebar .sz{color:var(--ink-soft);font-size:11.5px}
+.filebar a{cursor:pointer;border-bottom:1px solid var(--line);font-size:12px}
+
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+label{display:block}
+label .lb{display:block;font-size:11.5px;letter-spacing:.1em;color:var(--ink-soft);margin-bottom:7px}
+input[type=text],select{width:100%;padding:10px 12px;border:1px solid var(--line);background:var(--paper);
+  color:var(--ink);font:inherit;font-size:13.5px;outline:none;border-radius:0}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+.opts{display:flex;gap:22px;flex-wrap:wrap;margin-top:20px;font-size:13px;color:var(--ink-soft)}
+.opts label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.opts input{accent-color:var(--accent)}
+.run{margin-top:26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;font-size:13.5px;
+  border:1px solid var(--ink);background:var(--ink);color:var(--paper-2);cursor:pointer;transition:background .2s,transform .2s}
+.btn:hover{background:#000;color:#fff;transform:translateY(-1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-ghost:hover{background:rgba(48,52,58,.06);color:var(--ink)}
+.status{font-size:12.5px;color:var(--ink-soft);min-height:1.6em}
+.status.err{color:var(--warn)}
+.progress{height:2px;background:var(--line-soft);margin-top:18px;display:none}
+.progress.show{display:block}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+
+#result{display:none}
+#result.show{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.metric{background:var(--paper-2);padding:18px 20px}
+.metric b{display:block;font-size:22px;font-weight:500;line-height:1.3}
+.metric span{display:block;font-size:11px;color:var(--ink-soft);letter-spacing:.06em;margin-top:4px}
+.warns{margin:18px 0 0;padding:0;list-style:none;font-size:13px;color:var(--ink-soft)}
+.warns li{padding:7px 0 7px 18px;border-bottom:1px solid var(--line-soft);position:relative}
+.warns li::before{content:"—";position:absolute;left:0;color:var(--warn)}
+.warns li:last-child{border-bottom:0}
+.dl{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.note{font-size:12.5px;color:var(--ink-soft);line-height:1.95;margin-top:18px}
+.note b{color:var(--ink);font-weight:500}
+
+/* 章节清单：确认切分是否符合预期 */
+.chapters{margin:20px 0 0;padding:0;list-style:none;font-size:13.5px;border:1px solid var(--line)}
+.chapters li{padding:10px 16px;border-bottom:1px solid var(--line-soft);display:flex;gap:12px;align-items:baseline}
+.chapters li:last-child{border-bottom:0}
+.chapters .no{font-size:11px;color:var(--ink-soft);letter-spacing:.08em;flex:0 0 34px}
+.chapters .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chapters .c{font-size:11.5px;color:var(--ink-soft);flex:0 0 auto}
+
+.faq{margin-bottom:90px}
+.faq .card{margin-bottom:14px}
+.faq h3{font-size:15px;font-weight:500;margin:0 0 8px}
+.faq p{font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0}
+footer{margin-top:20px;border-top:1px solid var(--line);padding:30px 0 54px;display:flex;
+  justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft)}
+footer a{border-bottom:1px solid var(--line);padding-bottom:1px}
+@media(max-width:720px){
+  .wrap{padding:0 22px}.hero{padding:48px 0 32px}.hero h1{font-size:30px}
+  .card{padding:24px 20px}.fields{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}.nav-links{gap:14px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+  <a class="brand" href="index.html">见室印制所 <small class="sans">SEES PRESS</small></a>
+  <nav class="nav-links sans">
+    <a href="index.html">首页</a>
+    <a href="preview.html">在线翻看</a>
+    <a href="try.html">版式试验台</a>
+    <a href="pdf2epub.html">PDF → EPUB</a>
+    <a href="epub2pdf.html">EPUB → PDF</a>
+    <a href="md2epub.html" class="on">MD → EPUB</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <section class="hero">
+    <p class="eyebrow">MARKDOWN → EPUB</p>
+    <h1>把 Markdown 稿件<em>直接排成电子书</em></h1>
+    <p class="lede">上传一份 .md 文件：自动识别书名与作者、按标题切分章节、生成目录与元数据，
+      在浏览器里打包成<strong>标准的 EPUB 3</strong>。文件不上传，解析与打包都在本机完成。</p>
+    <div class="privacy"><i></i><span class="sans">纯本地处理 · 无服务器 · 不上传任何文件</span></div>
+  </section>
+
+  <section class="card" id="drop-card">
+    <h2>1 · 选一份 Markdown</h2>
+    <p class="sub">支持标题、段落、列表、表格、引用、代码块、分隔线。文首若有
+      <code>---</code> 包裹的元信息（title / author）会自动识别；没有就取第一个一级标题。</p>
+
+    <div class="drop" id="drop">
+      <div class="big">把 .md 拖到这里</div>
+      <div class="small">或者点击选择文件<br/>先确认章节切分，满意再打包下载</div>
+      <div class="pick sans">选择 Markdown 文件</div>
+    </div>
+    <input type="file" id="file" accept=".md,.markdown,.txt,text/markdown,text/plain" style="display:none"/>
+
+    <div class="filebar" id="filebar">
+      <span class="nm" id="fname">—</span>
+      <span class="sz" id="fsize"></span>
+      <a id="clear" class="sans">移除</a>
+    </div>
+
+    <div class="fields">
+      <label><span class="lb sans">书名</span>
+        <input type="text" id="title" placeholder="自动识别" value=""/></label>
+      <label><span class="lb sans">作者</span>
+        <input type="text" id="author" placeholder="自动识别" value=""/></label>
+      <label><span class="lb sans">章节切分</span>
+        <select id="split">
+          <option value="auto" selected>自动（有多个一级标题按它切，否则按二级）</option>
+          <option value="1">按一级标题（#）</option>
+          <option value="2">按二级标题（##）</option>
+          <option value="0">整本一章（不切分）</option>
+        </select></label>
+    </div>
+
+    <div class="opts sans">
+      <label><input type="checkbox" id="optTitle" checked/> 生成书名页</label>
+      <label><input type="checkbox" id="optIndent" checked/> 段首缩进两字</label>
+    </div>
+
+    <div class="run">
+      <button class="btn" id="go" disabled>解析章节</button>
+      <span class="status sans" id="status">先选一个 .md 文件</span>
+    </div>
+    <div class="progress" id="prog"><i id="progbar"></i></div>
+  </section>
+
+  <section class="card" id="result">
+    <h2>2 · 确认切分并下载</h2>
+    <p class="sub">下面是按当前设置切出的章节。不满意就回到上方改「章节切分」再点一次。</p>
+    <div class="metrics">
+      <div class="metric"><b id="mCh">—</b><span>章 / 篇</span></div>
+      <div class="metric"><b id="mChars">—</b><span>正文字数</span></div>
+      <div class="metric"><b id="mImg">—</b><span>图片引用</span></div>
+      <div class="metric"><b id="mSize">—</b><span>EPUB 大小</span></div>
+    </div>
+    <ul class="warns" id="warns"></ul>
+    <ol class="chapters" id="chlist"></ol>
+    <div class="dl">
+      <button class="btn" id="dl">打包并下载 EPUB</button>
+      <a class="btn btn-ghost sans" id="goPdf" href="epub2pdf.html">想出 PDF？拿这本 EPUB 去转换</a>
+    </div>
+    <p class="note sans">生成的 EPUB 带完整元数据（书名 / 作者 / 目录 / 语言），可直接导入
+      Apple Books、微信读书（导入本地书）、Calibre 等阅读器。想把排版再精一步，
+      在本机跑 SEES PRESS 的完整管线。</p>
+  </section>
+
+  <div class="card faq">
+    <h3>书名和作者是怎么识别的？</h3>
+    <p>优先取文首 <code>---</code> 元信息里的 title / author；没有就取正文第一个一级标题当书名。
+      作者识别不出就留空，可手动填写。文件名不会当书名用。</p>
+    <h3>图片怎么办？</h3>
+    <p>相对路径的本地图片没法从 Markdown 里读出，会被替换成「〔图：说明〕」占位并在上方提示；
+      网络图片与 data URI 会原样保留。要带插图出书，请用本机 SEES PRESS 完整管线或 PDF → EPUB。</p>
+    <h3>章节切分为什么有时找不到？</h3>
+    <p>切分只认行首的 <code>#</code> / <code>##</code>（代码块里的不算）。全文只有一个一级标题时自动
+      退到二级标题；一个标题都没有就整本一章。切分粒度随时可以手动指定。</p>
+    <h3>和 PDF → EPUB 有什么不同？</h3>
+    <p>那份是把版面式的 PDF「拆回」结构化文本；这份是从结构化文本「装成」电子书——
+      顺序相反，入口不同。常见的完整链路是：Markdown 排成 EPUB，再送 EPUB → PDF 出打印稿。</p>
+  </div>
+</div>
+
+<footer class="wrap">
+  <span>见室印制所 · SEES PRESS</span>
+  <span class="sans"><a href="epub2pdf.html">反向：EPUB → PDF</a> · <a href="pdf2epub.html">PDF → EPUB</a> · <a href="index.html">返回首页</a></span>
+</footer>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script>
+(function(){
+  var el = function(id){ return document.getElementById(id); };
+  var state = { file:null, chapters:[], meta:{title:'',author:''}, epubBlob:null, remoteImgs:0, missingImgs:0 };
+
+  function fmtSize(n){
+    if(n < 1024) return n + ' B';
+    if(n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/1024/1024).toFixed(2) + ' MB';
+  }
+  function status(msg, err){
+    var s = el('status'); s.textContent = msg;
+    s.className = 'status sans' + (err ? ' err' : '');
+  }
+  function prog(p){
+    el('prog').classList.toggle('show', p > 0 && p < 1);
+    el('progbar').style.width = Math.round(p*100) + '%';
+  }
+
+  // ── 文首元信息：--- 包裹的 key: value ────────────────────
+  function frontMatter(md){
+    var m = /^---\r?\n([\s\S]*?)\r?\n---\s*(\r?\n|$)/.exec(md);
+    if(!m) return { data:{}, body: md };
+    var data = {};
+    m[1].split(/\r?\n/).forEach(function(line){
+      var kv = /^(\w[\w-]*)\s*:\s*(.+)$/.exec(line.trim());
+      if(kv) data[kv[1].toLowerCase()] = kv[2].trim().replace(/^["']|["']$/g, '');
+    });
+    return { data:data, body: md.slice(m[0].length) };
+  }
+
+  // 标题行里的行内标记清干净再当章节名
+  function plainTitle(t){
+    return t.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/[*_`~]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // ── 按行首标题切分（代码围栏内的 # 不算）──────────────────
+  function splitHeadings(body, level){
+    var lines = body.split(/\r?\n/);
+    var fence = null, segs = [], cur = { title:'', text:[] };
+    var re = level > 0 ? new RegExp('^#{' + level + '}(?!#)\\s+(.+)$') : null;
+    for(var i=0;i<lines.length;i++){
+      var ln = lines[i];
+      var f = /^\s*(```+|~~~+)/.exec(ln);
+      if(f){ fence = fence ? null : f[1]; }
+      if(!fence && re){
+        var h = re.exec(ln);
+        if(h){
+          if(cur.title || cur.text.join('').trim()) segs.push(cur);
+          cur = { title: plainTitle(h[1]), text: [] };
+          continue;
+        }
+      }
+      cur.text.push(ln);
+    }
+    if(cur.title || cur.text.join('').trim()) segs.push(cur);
+    return segs;
+  }
+
+  function autoLevel(body){
+    var n1 = 0, n2 = 0, fence = false;
+    body.split(/\r?\n/).forEach(function(ln){
+      if(/^\s*(```|~~~)/.test(ln)) fence = !fence;
+      if(fence) return;
+      if(/^#\s\S/.test(ln)) n1++;
+      else if(/^##\s\S/.test(ln)) n2++;
+    });
+    if(n1 >= 2) return 1;
+    if(n2 >= 2) return 2;
+    return 0;
+  }
+
+  // ── 图片：本地相对路径嵌不进 EPUB，换成占位并提示 ──────────
+  function fixImages(html, warns){
+    var missing = 0, remote = 0;
+    var out = html.replace(/<img\b[^>]*\bsrc="([^"]*)"[^>]*>/g, function(all, src){
+      if(/^data:/i.test(src)) return all;
+      if(/^https?:/i.test(src)){ remote++; return all; }
+      var alt = /alt="([^"]*)"/.exec(all);
+      missing++;
+      return '<p class="imgnote">〔图：' + (alt ? alt[1] : src) + '〕</p>';
+    });
+    if(missing) warns.push('有 ' + missing + ' 处本地图片引用，已换成占位符（相对路径的图片文件无法从 Markdown 读出）');
+    if(remote) warns.push('有 ' + remote + ' 处网络图片链接，已原样保留；部分阅读器可能拦截远程资源');
+    return { html: out, missing: missing, remote: remote };
+  }
+
+  // marked 产出 HTML；XHTML 章节需要空元素自闭合 + 数值实体
+  function toXHTML(html){
+    return html
+      .replace(/<(br|hr|img|col)\b([^>]*?)\/?>/gi, '<$1$2/>')
+      .replace(/&nbsp;/g, '&#160;');
+  }
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function escAttr(s){
+    return esc(s).replace(/"/g,'&quot;');
+  }
+
+  function chapterXHTML(title, inner, kind){
+    var type = kind ? ' epub:type="' + kind + '"' : '';
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN">\n' +
+      '<head><meta charset="utf-8"/><title>' + esc(title || '正文') + '</title>' +
+      '<link rel="stylesheet" type="text/css" href="../style.css"/></head>\n' +
+      '<body><section' + type + ' class="chapter">' + inner + '</section></body>\n</html>\n';
+  }
+
+  var EPUB_CSS =
+    'body{margin:0;padding:0 5%;font-family:Georgia,"Times New Roman",serif;line-height:1.8;}\n' +
+    'h1,h2,h3{line-height:1.45;font-weight:bold;}\n' +
+    'h1{font-size:1.5em;margin:1.2em 0 .8em;}\n' +
+    'h2{font-size:1.25em;margin:1.2em 0 .6em;}\n' +
+    'h3{font-size:1.1em;margin:1em 0 .5em;}\n' +
+    'p{margin:.65em 0;text-indent:2em;}\n' +
+    'h1 + p, h2 + p, h3 + p, blockquote + p {text-indent:0;}\n' +
+    'blockquote{margin:.8em 0;padding-left:1em;border-left:2px solid #999;color:#444;}\n' +
+    'pre{background:#f4f4f0;padding:.8em;overflow-x:auto;font-size:.85em;line-height:1.6;}\n' +
+    'code{font-family:Menlo,Consolas,monospace;font-size:.88em;}\n' +
+    'table{border-collapse:collapse;width:100%;font-size:.86em;margin:.8em 0;}\n' +
+    'td,th{border:1px solid #999;padding:.3em .55em;}\n' +
+    'th{background:#f0efe9;text-align:left;}\n' +
+    'img{max-width:100%;height:auto;}\n' +
+    'hr{border:0;border-top:1px solid #999;margin:1.3em 0;}\n' +
+    'ul,ol{padding-left:1.6em;margin:.6em 0;}\n' +
+    'section.chapter{page-break-before: always;break-before: page;}\n' +
+    'section.front{page-break-after: always;break-after: page;text-align:center;}\n' +
+    'section.cover{text-align:center;margin:0;padding:0;}\n' +
+    'section.cover img{max-width:100%;height:auto;}\n' +
+    'section.titlepage{margin-top:30%;text-align:center;}\n' +
+    'section.titlepage .bt{font-size:1.9em;font-weight:bold;line-height:1.5;text-indent:0;}\n' +
+    'section.titlepage .ba{font-size:1.05em;color:#555;text-indent:0;margin-top:1.6em;}\n' +
+    '.imgnote{color:#777;font-size:.9em;text-indent:0;text-align:center;}\n';
+
+  function navXHTML(chapters){
+    var lis = chapters.map(function(c, i){
+      return '<li><a href="text/ch' + String(i+1).padStart(3,'0') + '.xhtml">' + esc(c.title) + '</a></li>';
+    }).join('\n');
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN">\n' +
+      '<head><meta charset="utf-8"/><title>目录</title></head>\n' +
+      '<body><nav epub:type="toc" id="toc"><h1>目录</h1>\n<ol>\n' + lis + '\n</ol></nav>\n' +
+      '<nav epub:type="landmarks" hidden="hidden"><ol>\n' +
+      '<li><a epub:type="cover" href="text/cover.xhtml">封面</a></li>\n' +
+      '<li><a epub:type="bodymatter" href="text/ch001.xhtml">正文</a></li>\n' +
+      '</ol></nav></body>\n</html>\n';
+  }
+
+  // EPUB2 回退目录：微信读书等旧内核只认 ncx
+  function ncxXHTML(uuid, meta, chapters){
+    var pts = chapters.map(function(c, i){
+      return '<navPoint id="nav' + (i+1) + '" playOrder="' + (i+1) + '">\n' +
+        '<navLabel><text>' + esc(c.title) + '</text></navLabel>\n' +
+        '<content src="text/ch' + String(i+1).padStart(3,'0') + '.xhtml"/>\n</navPoint>';
+    }).join('\n');
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n' +
+      '<head>\n' +
+      '<meta name="dtb:uid" content="urn:uuid:' + uuid + '"/>\n' +
+      '<meta name="dtb:depth" content="1"/>\n' +
+      '<meta name="dtb:totalPageCount" content="0"/>\n' +
+      '<meta name="dtb:maxPageNumber" content="0"/>\n' +
+      '</head>\n' +
+      '<docTitle><text>' + esc(meta.title) + '</text></docTitle>\n' +
+      '<navMap>\n' + pts + '\n</navMap>\n</ncx>\n';
+  }
+
+  function opfXHTML(uuid, meta, chapters){
+    var now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    var items = chapters.map(function(c, i){
+      return '<item id="ch' + (i+1) + '" href="text/ch' + String(i+1).padStart(3,'0') +
+             '.xhtml" media-type="application/xhtml+xml"/>';
+    }).join('\n');
+    var refs = chapters.map(function(c, i){
+      return '<itemref idref="ch' + (i+1) + '"/>';
+    }).join('\n');
+    var creator = meta.author ? '<dc:creator>' + esc(meta.author) + '</dc:creator>\n' : '';
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="zh-CN">\n' +
+      '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\n' +
+      '<dc:identifier id="bookid">urn:uuid:' + uuid + '</dc:identifier>\n' +
+      '<dc:title>' + esc(meta.title) + '</dc:title>\n' + creator +
+      '<dc:language>zh-CN</dc:language>\n' +
+      '<meta property="dcterms:modified">' + now + '</meta>\n' +
+      '<meta property="rendition:layout">reflowable</meta>\n' +
+      '<meta name="cover" content="cover-image"/>\n' +
+      '</metadata>\n<manifest>\n' +
+      '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n' +
+      '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n' +
+      '<item id="css" href="style.css" media-type="text/css"/>\n' +
+      '<item id="cover-image" href="images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>\n' +
+      '<item id="cover-xhtml" href="text/cover.xhtml" media-type="application/xhtml+xml"/>\n' + items +
+      '\n</manifest>\n<spine toc="ncx">\n' +
+      '<itemref idref="cover-xhtml"/>\n' + refs + '\n<itemref idref="nav"/>\n' +
+      '</spine>\n</package>\n';
+  }
+
+  var CONTAINER = '<?xml version="1.0" encoding="utf-8"?>\n' +
+    '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n' +
+    '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>\n' +
+    '</container>\n';
+
+  function coverXHTML(){
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN">\n' +
+      '<head><meta charset="utf-8"/><title>封面</title>' +
+      '<link rel="stylesheet" type="text/css" href="../style.css"/></head>\n' +
+      '<body><section epub:type="cover" class="front cover">\n' +
+      '<img src="../images/cover.jpg" alt="封面"/>\n</section></body>\n</html>\n';
+  }
+
+  // ── 解析与切分 ────────────────────────────────────────────
+  function parse(){
+    if(!state.file) return;
+    var warns = [];
+    var reader = new FileReader();
+    prog(.15);
+    reader.onload = function(){
+      var md = String(reader.result).replace(/^\uFEFF/, '');
+      var fm = frontMatter(md);
+      var meta = {
+        title: el('title').value.trim() || fm.data.title || '',
+        author: el('author').value.trim() || fm.data.author || ''
+      };
+      // 自动识别到的书名/作者回填输入框，方便核对与修改
+      el('title').value = meta.title;
+      el('author').value = meta.author;
+
+      // 自动书名：元信息没有，就取第一个一级标题
+      if(!meta.title){
+        var m = /(^|\n)#\s+(.+)\s*$/.exec(fm.body);
+        meta.title = m ? plainTitle(m[2]) : state.file.name.replace(/\.(md|markdown|txt)$/i, '');
+      }
+      state.meta = meta;
+      if(fm.data.title || fm.data.author) warns.push('已从文首元信息读出' + (fm.data.title ? '书名' : '') + (fm.data.title && fm.data.author ? '与' : '') + (fm.data.author ? '作者' : ''));
+
+      var lv = el('split').value === 'auto' ? autoLevel(fm.body) : +el('split').value;
+      var segs = splitHeadings(fm.body, lv);
+      if(!segs.length){ status('这份文件没有可排的内容', true); prog(0); return; }
+
+      var titleDone = false;
+      var chapters = segs.map(function(s, i){
+        var raw = s.text.join('\n').trim();
+        var html = marked.parse(raw);
+        var fixed = fixImages(html, warns);
+        var inner = toXHTML(fixed.html);
+        var kind = '';
+        var title;
+        if(!s.title && !titleDone && el('optTitle').checked && i === 0){
+          // 切分点之前没有标题的散段：并入书名页而不是空章
+          title = '书名页'; kind = 'titlepage'; titleDone = true;
+          var bt = '<p class="bt">' + esc(meta.title) + '</p>';
+          var ba = meta.author ? '<p class="ba">' + esc(meta.author) + '</p>' : '';
+          if(raw) inner = bt + ba + '<hr/>' + inner;
+          else inner = bt + ba;
+        } else {
+          title = s.title || '';
+        }
+        return { title: title, inner: inner, kind: kind,
+                 chars: raw.replace(/\s+/g, '').length, raw: raw };
+      });
+
+      // 正文各章补上章标题（标题行被当切分点消费掉了，但 EPUB 正文里应该有它）；
+      // 全文只有一段且没有标题时，章名就是书名
+      chapters.forEach(function(c){
+        if(c.kind !== 'titlepage'){
+          if(!c.title) c.title = chapters.length === 1 ? meta.title : (meta.title + ' · 卷首');
+          c.inner = '<h1>' + esc(c.title) + '</h1>' + c.inner;
+        }
+      });
+
+      // 全文无标题且开了书名页：第一章本身就是书名页
+      if(el('optTitle').checked && chapters[0].kind !== 'titlepage'){
+        var bt = '<p class="bt">' + esc(meta.title) + '</p>';
+        var ba = meta.author ? '<p class="ba">' + esc(meta.author) + '</p>' : '';
+        chapters.unshift({ title:'书名页', kind:'titlepage', chars:0, raw:'', inner: bt + ba });
+      }
+
+      state.chapters = chapters;
+      state.warns = warns;
+      state.remoteImgs = 0; state.missingImgs = 0;
+      var totalChars = 0;
+      chapters.forEach(function(c){ totalChars += c.chars; });
+      el('mCh').textContent = chapters.filter(function(c){ return c.kind !== 'titlepage'; }).length;
+      el('mChars').textContent = totalChars.toLocaleString();
+      el('mImg').textContent = (state.missingImgs + state.remoteImgs) || '0';
+      el('mSize').textContent = '—';
+
+      var ol = el('chlist'); ol.innerHTML = '';
+      chapters.forEach(function(c, i){
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="no sans">' + String(i+1).padStart(2,'0') + '</span>' +
+          '<span class="t">' + esc(c.title) + '</span>' +
+          '<span class="c sans">' + c.chars.toLocaleString() + ' 字</span>';
+        ol.appendChild(li);
+      });
+      var ul = el('warns'); ul.innerHTML = '';
+      warns.forEach(function(w){
+        var li = document.createElement('li'); li.textContent = w; ul.appendChild(li);
+      });
+      el('result').classList.add('show');
+      state.epubBlob = null;
+      el('dl').textContent = '打包并下载 EPUB';
+      el('dl').disabled = false;
+      prog(1); setTimeout(function(){ prog(0); }, 400);
+      status('切出 ' + chapters.length + ' 节（含书名页）。确认清单后点下方打包。');
+    };
+    reader.onerror = function(){ status('读文件失败', true); prog(0); };
+    reader.readAsText(state.file, 'utf-8');
+  }
+
+  // ── 画一张排版像样的 JPEG 封面（1400×2100，约 294 万像素达标）────────
+  function wrapText(ctx, text, x, y, maxW, lh){
+    var line = '', lines = [];
+    for(var i=0;i<text.length;i++){
+      var test = line + text[i];
+      if(ctx.measureText(test).width > maxW && line){ lines.push(line); line = text[i]; }
+      else line = test;
+    }
+    if(line) lines.push(line);
+    var start = y - (lines.length - 1) * lh / 2;
+    lines.forEach(function(l, i){ ctx.fillText(l, x, start + i * lh); });
+  }
+  function makeCoverJPEG(meta){
+    return new Promise(function(resolve, reject){
+      var W = 1400, H = 2100;
+      var cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      var ctx = cv.getContext('2d');
+      ctx.fillStyle = '#1F4E3D';
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(247,244,237,.85)'; ctx.lineWidth = 3;
+      ctx.strokeRect(70, 70, W - 140, H - 140);
+      ctx.lineWidth = 1; ctx.strokeRect(92, 92, W - 184, H - 184);
+      ctx.fillStyle = '#F7F4ED'; ctx.textAlign = 'center';
+      var t = meta.title || '未命名';
+      var fs = t.length <= 8 ? 150 : (t.length <= 16 ? 110 : 84);
+      ctx.font = '500 ' + fs + 'px Georgia,"Songti SC","STSong",SimSun,serif';
+      wrapText(ctx, t, W/2, H * 0.42, W - 320, fs * 1.35);
+      if(meta.author){
+        ctx.font = '44px Georgia,"Songti SC","STSong",SimSun,serif';
+        ctx.fillStyle = 'rgba(247,244,237,.85)';
+        ctx.fillText(meta.author, W/2, H * 0.62);
+      }
+      ctx.font = '30px Georgia,serif';
+      ctx.fillStyle = 'rgba(247,244,237,.6)';
+      ctx.fillText('见 室 印 制 所 · SEES PRESS', W/2, H - 190);
+      cv.toBlob(function(b){
+        if(b) resolve(b); else reject(new Error('canvas 封面导出失败'));
+      }, 'image/jpeg', 0.92);
+    });
+  }
+
+  // ── 打包 EPUB ────────────────────────────────────────────
+  function build(){
+    if(!state.chapters.length) return;
+    prog(.2); el('dl').disabled = true;
+    makeCoverJPEG(state.meta).then(function(coverBlob){
+      var uuid = crypto.randomUUID ? crypto.randomUUID() : ('epub-' + Date.now());
+      var zip = new JSZip();
+      // mimetype 必须是包内第一个且不压缩
+      zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+      zip.file('META-INF/container.xml', CONTAINER);
+      zip.file('OEBPS/content.opf', opfXHTML(uuid, state.meta, state.chapters));
+      zip.file('OEBPS/nav.xhtml', navXHTML(state.chapters));
+      zip.file('OEBPS/toc.ncx', ncxXHTML(uuid, state.meta, state.chapters));
+      zip.file('OEBPS/style.css', EPUB_CSS);
+      zip.file('OEBPS/images/cover.jpg', coverBlob);
+      zip.file('OEBPS/text/cover.xhtml', coverXHTML());
+      state.chapters.forEach(function(c, i){
+        zip.file('OEBPS/text/ch' + String(i+1).padStart(3,'0') + '.xhtml',
+                 chapterXHTML(c.title, c.inner, c.kind));
+      });
+      return zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' }, function(m){
+        prog(.2 + m.percent / 100 * .8);
+      });
+    }).then(function(blob){
+      state.epubBlob = blob;
+      window.__epubBlob = blob;          // 供自动化探针校验包内容
+      el('mSize').textContent = fmtSize(blob.size);
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (state.meta.title || 'book').replace(/[\\/:*?"<>|]/g, '_') + '.epub';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+      prog(0);
+      el('dl').disabled = false;
+      status('EPUB 已生成并开始下载（' + fmtSize(blob.size) + '）');
+    }).catch(function(e){
+      status('打包失败：' + e.message, true); prog(0); el('dl').disabled = false;
+    });
+  }
+
+  // ── 交互 ─────────────────────────────────────────────────
+  function pick(f){
+    if(!f) return;
+    if(!/\.(md|markdown|txt)$/i.test(f.name) && !/text\/(markdown|plain)/.test(f.type)){
+      status('请选择 .md / .markdown / .txt 文件', true); return;
+    }
+    state.file = f;
+    el('fname').textContent = f.name;
+    el('fsize').textContent = fmtSize(f.size);
+    el('filebar').classList.add('show');
+    el('go').disabled = false;
+    el('result').classList.remove('show');
+    status('已选 ' + f.name + '，点「解析章节」');
+  }
+  el('drop').addEventListener('click', function(){ el('file').click(); });
+  el('file').addEventListener('change', function(e){ pick(e.target.files[0]); });
+  ['dragover','dragenter'].forEach(function(ev){
+    el('drop').addEventListener(ev, function(e){ e.preventDefault(); el('drop').classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    el('drop').addEventListener(ev, function(e){ e.preventDefault(); el('drop').classList.remove('over'); });
+  });
+  el('drop').addEventListener('drop', function(e){
+    if(e.dataTransfer && e.dataTransfer.files.length) pick(e.dataTransfer.files[0]);
+  });
+  el('clear').addEventListener('click', function(){
+    state.file = null; el('file').value = '';
+    el('filebar').classList.remove('show'); el('go').disabled = true;
+    el('result').classList.remove('show'); status('先选一个 .md 文件');
+  });
+  el('go').addEventListener('click', parse);
+  el('dl').addEventListener('click', build);
+  ['split','optTitle','optIndent'].forEach(function(id){
+    el(id).addEventListener('change', function(){ if(state.file) parse(); });
+  });
+})();
+</script>
+</body>
+</html>
